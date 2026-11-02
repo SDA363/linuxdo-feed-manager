@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LDFC · 授权 WebDAV 域名</title>
+    <link rel="stylesheet" href="permissions.css" />
+  </head>
+  <body>
+    <main>
+      <h1>授权访问 WebDAV</h1>
+      <p class="muted">
+        扩展需要访问下面这个域名，才能读写你自己的同步文件。它只会在你填写的地址上发起请求。
+      </p>
+      <code id="origin">（缺少地址）</code>
+      <p id="status" class="status">正在检查授权状态…</p>
+      <div class="actions">
+        <button id="grant" type="button">允许访问</button>
+        <button id="close" type="button" class="secondary">关闭</button>
+      </div>
+      <p class="muted small">授权后回到 Linux.do 页面，设置面板会自动显示“已授权”。</p>
+    </main>
+    <script src="permissions.js"></script>
+  </body>
+</html>

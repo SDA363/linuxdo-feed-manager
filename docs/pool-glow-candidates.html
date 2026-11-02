@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>LDFC「已加入该池」光效候选（5 版）</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 32px 24px;
+    background: #141418; color: #e8e8ee;
+    font: 400 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { margin: 0 0 6px; font-size: 19px; font-weight: 700; }
+  p.lead { margin: 0 0 18px; color: #9b9ba8; font-size: 12.5px; max-width: 1120px; }
+  p.lead code { color: #cfcfe0; font-size: 11.5px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .card {
+    border: 1px solid rgba(255,255,255,0.075);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.03);
+    padding: 13px 14px 11px;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 { margin: 0; font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .no {
+    width: 21px; height: 21px; border-radius: 999px; flex: none;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+    font-size: 11.5px; font-weight: 700;
+  }
+  .tag { margin-left: auto; font-size: 10.5px; font-weight: 600; color: #8e8ea0; }
+  .notes { margin: 0; padding: 0; list-style: none; font-size: 11.5px; line-height: 1.5; color: #9b9ba8; }
+  .notes b { color: #cdcddc; }
+  .notes .good b { color: #9fd6b4; }
+  .notes .bad b { color: #e5a3a3; }
+
+  .demo {
+    display: flex; flex-direction: column; gap: 7px;
+    padding: 12px 10px; border-radius: 13px;
+    background: linear-gradient(160deg, #1b1b21 0%, #16161b 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .state { display: flex; align-items: center; gap: 12px; }
+  .cap { width: 118px; flex: none; font-size: 10.5px; color: #7f7f92; }
+  .zoom { transform: scale(1.3); transform-origin: left center; }
+
+  /* 真实胶囊：尺寸与插件一致（32px 高 / 17px 图标），演示区放大 1.3× */
+  .capsule {
+    display: inline-flex; align-items: center; gap: 2px; padding: 4px;
+    border: 1px solid rgba(127,127,127,0.16); border-radius: 999px;
+    background: rgba(127,127,127,0.1);
+    color: #d8d8e4;
+    font: 600 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .b {
+    position: relative;
+    display: inline-flex; align-items: center; height: 32px; padding: 0 10px;
+    border: 0; border-radius: 999px; background: transparent; color: inherit;
+    font: inherit; cursor: default;
+  }
+  .ico { position: relative; display: grid; place-items: center; width: 17px; height: 17px; opacity: .75; }
+  .ico svg { position: relative; }
+  .ico svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .num { margin-left: 6px; padding: .08em .4em; border-radius: 999px; background: rgba(127,127,127,.16); font-size: 11px; line-height: 1.45; opacity: .9; }
+  .lbl {
+    display: inline-block; max-width: 0; margin-left: 0; overflow: hidden; white-space: nowrap;
+    opacity: 0; font-size: 12px;
+  }
+  .hover .lbl { max-width: 110px; margin-left: 6px; opacity: 1; }
+  .hover { background: rgba(127,127,127,0.16); }
+
+  /* 池子色：只用来说明「哪个池子」，光效本身不能抢正文 */
+  .p-interested { --tint: #ffb454; --tint-soft: rgba(255,180,84,.18); --tint-line: rgba(255,180,84,.55); }
+  .p-read { --tint: #5fd0a8; --tint-soft: rgba(95,208,168,.18); --tint-line: rgba(95,208,168,.55); }
+  .p-dismissed { --tint: #e0777d; --tint-soft: rgba(224,119,125,.18); --tint-line: rgba(224,119,125,.55); }
+
+  /* ── 版本 1：柔光底 ───────────────────────────── */
+  .v1 .b.on {
+    background: linear-gradient(180deg, var(--tint-soft), rgba(255,255,255,0));
+    box-shadow: inset 0 0 0 1px var(--tint-line), inset 0 1px 0 rgba(255,255,255,.16);
+    color: #f2f2f8;
+  }
+  .v1 .b.on .ico { opacity: 1; color: var(--tint); }
+  .v1 .b.on .num { background: var(--tint-soft); color: var(--tint); }
+
+  /* ── 版本 2：图标光环 ─────────────────────────── */
+  .v2 .b.on .ico { opacity: 1; color: var(--tint); filter: drop-shadow(0 0 6px var(--tint)); }
+  .v2 .b.on .ico::before {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 999px;
+    background: radial-gradient(circle, var(--tint-line) 0%, rgba(0,0,0,0) 62%);
+    opacity: .55;
+  }
+  .v2 .b.on .num { color: var(--tint); }
+  .v2 .b.on { background: rgba(255,255,255,.05); }
+
+  /* ── 版本 3：底部指示条 ───────────────────────── */
+  .v3 .b.on .ico { opacity: 1; color: var(--tint); }
+  .v3 .b.on::after {
+    content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 2.5px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, rgba(0,0,0,0), var(--tint), rgba(0,0,0,0));
+    box-shadow: 0 0 8px var(--tint-line);
+  }
+  .v3 .b.on { color: #f4f4fa; }
+  .v3 .b.on .num { color: var(--tint); }
+
+  /* ── 版本 4：描边外发光（macOS 选中态） ───────── */
+  .v4 .b.on {
+    background: rgba(255,255,255,.055);
+    box-shadow: 0 0 0 1px var(--tint-line), 0 6px 16px -8px var(--tint);
+  }
+  .v4 .b.on .ico { opacity: 1; color: #fff; }
+  .v4 .b.on .num { color: #fff; background: rgba(255,255,255,.14); }
+  .v4 .b.on .ring {
+    position: absolute; inset: -1px; border-radius: 999px;
+    box-shadow: 0 0 12px 2px var(--tint-soft);
+    pointer-events: none;
+  }
+
+  /* ── 版本 5：呼吸扩散环（画两帧） ─────────────── */
+  .v5 .b.on { background: var(--tint-soft); color: #f4f4fa; }
+  .v5 .b.on .ico { opacity: 1; color: var(--tint); }
+  .v5 .b.on .halo {
+    position: absolute; inset: -3px; border-radius: 999px;
+    border: 1px solid var(--tint-line); opacity: .35;
+  }
+  .v5 .b.on.peak .halo { inset: -7px; opacity: .12; }
+  .v5 .b.on.peak .halo { inset: -7px; opacity: .3; box-shadow: 0 0 10px var(--tint-soft); }
+  .v5 .b.on .dot {
+    position: absolute; top: 5px; right: 6px; width: 4px; height: 4px; border-radius: 999px;
+    background: var(--tint);
+  }
+
+  .foot { margin-top: 12px; font-size: 11.5px; color: #86869a; }
+</style>
+</head>
+<body>
+<h1>LDFC「已加入该池」光效候选（5 版）</h1>
+<p class="lead">
+  三个池子按钮在<b style="color:#dcdcea">帖子已在对应池子里</b>时点亮。每版都摆三行：未加入 / 已加入「感兴趣」/ 已加入「已读」+ 悬停展开。
+  演示按真实尺寸放大 1.3×（实际按钮高 32px）。判定条件：<code>basePool === 该池</code>（新回复另算 <code>newReplyPending</code>）。
+</p>
+
+<div class="grid" id="grid"></div>
+<p class="foot">光效只改颜色/发光，不改按钮宽高与位置，避免点亮瞬间整排跳动；具体色值、发光半径、呼吸周期都是待定参数。</p>
+
+<script>
+  const ICONS = {
+    INTERESTED: '<path d="M12 3.6l2.5 5.1 5.6.8-4.1 4 1 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8Z"/>',
+    READ: '<path d="M5 12.8l4.3 4.3L19 7.3"/>',
+    DISMISSED: '<path d="M7 7l10 10M17 7L7 17"/>'
+  };
+  const POOLS = [
+    { key: 'INTERESTED', cls: 'p-interested', count: 8 },
+    { key: 'READ', cls: 'p-read', count: 133 },
+    { key: 'DISMISSED', cls: 'p-dismissed', count: 37 }
+  ];
+
+  function capsule(onKey, opts = {}) {
+    const buttons = POOLS.map((pool) => {
+      const on = pool.key === onKey ? " on" : "";
+      const peak = on && opts.peak ? " peak" : "";
+      const hover = on && opts.hover ? " hover" : "";
+      const halo = on ? '<span class="halo"></span>' : "";
+      const dot = on ? '<span class="dot"></span>' : "";
+      return `<button class="b ${pool.cls}${on}${peak}${hover}">
+        ${halo}${dot}
+        <span class="ico"><svg viewBox="0 0 24 24">${ICONS[pool.key]}</svg></span>
+        <span class="lbl">${{ INTERESTED: "感兴趣", READ: "已读", DISMISSED: "不感兴趣" }[pool.key]}</span>
+        <span class="num">${pool.count}</span>
+      </button>`;
+    }).join("");
+    return `<div class="capsule">${buttons}</div>`;
+  }
+
+  const VARIANTS = [
+    {
+      no: 1,
+      title: "柔光底",
+      tag: "最不打扰",
+      rows: [
+        ["未加入", capsule(null)],
+        ["已加入「感兴趣」", capsule("INTERESTED")],
+        ["已加入「已读」+ 悬停", capsule("READ", { hover: true })]
+      ],
+      notes: [
+        ["good", "好：", "只在按钮内部铺一层淡色，几乎不影响阅读；亮色主题下也不会脏。"],
+        ["bad", "弱：", "太轻，扫一眼容易漏；三个都点亮时区分度不够。"]
+      ]
+    },
+    {
+      no: 2,
+      title: "图标光环",
+      tag: "最克制",
+      rows: [
+        ["未加入", capsule(null)],
+        ["已加入「感兴趣」", capsule("INTERESTED")],
+        ["已加入「已读」+ 悬停", capsule("READ", { hover: true })]
+      ],
+      notes: [
+        ["good", "好：", "光只包在 17px 图标外，正文完全不受影响；和「悬停旋转」是同一个元素，动效自然。"],
+        ["bad", "弱：", "远看像图标描边，不算「光效」；数字仍是灰的，计数区看不出状态。"]
+      ]
+    },
+    {
+      no: 3,
+      title: "底部指示条",
+      tag: "像 iOS 标签栏",
+      rows: [
+        ["未加入", capsule(null)],
+        ["已加入「感兴趣」", capsule("INTERESTED")],
+        ["已加入「已读」+ 悬停", capsule("READ", { hover: true })]
+      ],
+      notes: [
+        ["good", "好：", "底部一条渐变线，含义最直白（「当前在这里」）；三个快捷键并列时一眼看出位置。"],
+        ["bad", "弱：", "离「光效」最远；按钮高 32px，指示条距文字很近，视觉略挤。"]
+      ]
+    },
+    {
+      no: 4,
+      title: "描边 + 外发光",
+      tag: "最像 macOS 选中",
+      rows: [
+        ["未加入", capsule(null)],
+        ["已加入「感兴趣」", capsule("INTERESTED")],
+        ["已加入「已读」+ 悬停", capsule("READ", { hover: true })]
+      ],
+      notes: [
+        ["good", "好：", "1px 描边 + 外发光，选中感最强，与设置里「选中」那一套视觉同源。"],
+        ["bad", "弱：", "外发光会溢出胶囊边界，密集列表里容易糊；深色主题好看，浅色主题要重调。"]
+      ]
+    },
+    {
+      no: 5,
+      title: "呼吸扩散环（两帧）",
+      tag: "动态最强",
+      wide: true,
+      rows: [
+        ["未加入", capsule(null)],
+        ["已加入「感兴趣」（收）", capsule("INTERESTED")],
+        ["已加入「感兴趣」（放）", capsule("INTERESTED", { peak: true })],
+        ["已加入「已读」+ 悬停", capsule("READ", { hover: true })]
+      ],
+      notes: [
+        ["good", "好：", "常驻一层淡色 + 缓慢扩散的环，余光就能注意到「这条进过池子」；静止帧（收）也不刺眼。"],
+        ["bad", "弱：", "动效多，整页十几行同时呼吸会吵；必须开 <code>prefers-reduced-motion</code> 降级成静止帧。"]
+      ]
+    }
+  ];
+
+  document.getElementById("grid").innerHTML = VARIANTS.map((variant) => {
+    const rows = variant.rows
+      .map(([cap, html]) => `<div class="state"><span class="cap">${cap}</span><span class="zoom">${html}</span></div>`)
+      .join("");
+    const notes = variant.notes
+      .map(([kind, label, text]) => `<li class="${kind}"><b>${label}</b>${text}</li>`)
+      .join("");
+    return `<section class="card v${variant.no}${variant.wide ? " wide" : ""}">
+      <h2><span class="no">${variant.no}</span>${variant.title}<span class="tag">${variant.tag}</span></h2>
+      <div class="demo">${rows}</div>
+      <ul class="notes">${notes}</ul>
+    </section>`;
+  }).join("");
+</script>
+</body>
+</html>

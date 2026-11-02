@@ -1,0 +1,72 @@
+{
+  "manifest_version": 3,
+  "name": "Linux.do Personal Feed Manager",
+  "version": "1.1.1",
+  "version_name": "1.1.1",
+  "description": "将 Linux.do 主题组织为个人信息池，数据默认保存在本地，可选 WebDAV 云同步。",
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://linux.do/*"
+      ],
+      "js": [
+        "site/routeObserverMain.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://linux.do/*"
+      ],
+      "css": [
+        "styles/content.css"
+      ],
+      "js": [
+        "storage/migration.js",
+        "site/identity.js",
+        "storage/db.js",
+        "storage/topicState.js",
+        "storage/syncModel.js",
+        "storage/syncService.js",
+        "sync/webdavTransport.js",
+        "site/topicParser.js",
+        "site/discourseAdapter.js",
+        "site/trackingState.js",
+        "core/notificationLevel.js",
+        "core/poolManager.js",
+        "core/newReply.js",
+        "core/filter.js",
+        "core/autofill.js",
+        "interaction/desktopActions.js",
+        "interaction/multiSelect.js",
+        "interaction/swipe.js",
+        "ui/toast.js",
+        "ui/navigation.js",
+        "vendor/html2canvas.min.js",
+        "ui/previewExport.js",
+        "ui/listMeta.js",
+        "ui/launcher.js",
+        "vendor/linuxdo-enhanced-reading.js",
+        "ui/preview.js",
+        "ui/poolPanel.js",
+        "ui/syncSettings.js",
+        "ui/settings.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "host_permissions": [
+    "https://linux.do/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
+}

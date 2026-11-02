@@ -1,0 +1,69 @@
+# ============================================================
+# LDFC 1.0.0 — 版本库排除规则
+# 原则：正式源码 / 规格 / 测试 / README / AGENTS / 报告 全部纳入；
+#       浏览器 profile、缓存、临时产物、一次性诊断脚本 全部排除。
+# ============================================================
+
+# ---- 浏览器 profile（含登录 Cookie，绝不能进版本库）----
+.chrome-profile/
+.chrome-profile-*/
+.edge-profile/
+.edge-profile-*/
+.ldfc-acceptance-profile/
+.ldfc-account-b-profile/
+.ldfc-guest-profile/
+browser-lab/.chrome-lab-profile/
+browser-lab/.chrome-lab-profile-*/
+浏览器/.browser-profile/
+
+# ---- 测试生成的插件副本与临时目录 ----
+browser-lab/.probe-ext/
+browser-lab/.tmp/
+浏览器/.tmp/
+
+# ---- 测试输出与日志 ----
+browser-lab/.acc-*.txt
+browser-lab/acceptance-result.png
+browser-lab/.chrome-lab.log
+browser-lab/.browser-lab.state.json
+browser-lab/.probe.log
+browser-lab/.*.json
+browser-lab/.*.err
+browser-lab/.*.txt
+浏览器/screen.png
+
+# ---- 一次性诊断脚本（点号开头的临时探针）----
+# 说明：browser-lab/ 下**有名字**的 real-site-*.js / final-retest.js /
+# scan-*.js 是各轮报告里引用的取证工具，属于项目资产，**保留**；
+# 点号开头的都是当轮临时写的排查脚本，不进版本库。
+browser-lab/.*.js
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---- 构建产物（打包生成，不进版本库）----
+dist/
+
+# ---- Firefox 适配工作区（由 tools/build-firefox-ext.js 生成，不入库）----
+mobile-firefox/
+
+# ---- 改动前的 .bak 备份（按 D1 保留在磁盘，但不进版本库）----
+backups/
+
+# ---- 第三方脚本参考副本（用户从油猴脚本库复制的参考资料，非项目源码）----
+脚本/
+
+# ---- 公开仓库排除：内部记录 / 含本机绝对路径的文件 ----
+# 这些文件留在本地磁盘，但不进入版本库，避免把 D:\桌面\... 之类的
+# 本机路径和内部施工记录一起公开出去。
+AGENTS.md
+_todo.md
+_todo-*.md
+browser-lab/README.md
+linuxdo-personal-feed-manager/README.md
+docs/LDFC-1.0.0-Git封存记录.md
+docs/LDFC-Mobile-Phase1-Firefox最终提交包.md

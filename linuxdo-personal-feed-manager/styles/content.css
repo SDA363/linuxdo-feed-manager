@@ -1,0 +1,2040 @@
+/* 五区导航：一颗悬浮球 + 从球本身放大出来的面板。
+
+   位置由 JS 写 left/top（球的左上角）。nav 固定 52×52，永不因面板开合
+   改变尺寸；面板的布局尺寸始终是完整尺寸，收起态只靠 transform 压到
+   52×52 并与球重合，展开时从贴合角原位放大。视觉上就是"图标变成面板"。
+   transform-origin 由 JS 对准面板与球贴合的那个角，收起时原路缩回。
+
+   z-index 必须高于第三方预览弹窗（.ldp-overlay 用 2147483000），
+   否则在弹窗里打开的面板会被整个盖住。 */
+#ldfc-navigation {
+  position: fixed;
+  left: 16px;
+  top: calc(100vh - 76px);
+  z-index: 2147483001;
+  width: 52px;
+  height: 52px;
+  overflow: visible;
+  background: transparent;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 悬浮球：squircle + 玻璃拟态。
+   高光和内阴影都叠在同一个 background/box-shadow 里，
+   不用伪元素，少一层合成。 */
+#ldfc-navigation .ldfc-nav-fab {
+  position: absolute;
+  inset: 0;
+  /* 面板在收起态与球完全重合；球必须压在上面，用户看到的才是图标本身。
+     展开后球淡出，面板自然接管。 */
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  color: #fff;
+  background:
+    radial-gradient(115% 110% at 26% 14%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
+    linear-gradient(155deg, #7c8bf3 0%, #9b7bf0 48%, #61b6df 100%);
+  box-shadow:
+    0 12px 26px -8px rgba(60, 48, 150, 0.6),
+    0 3px 9px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  touch-action: none;
+  transform: translateZ(0);
+  transition:
+    transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 300ms cubic-bezier(0.32, 0.72, 0, 1),
+    filter 200ms ease,
+    opacity 140ms cubic-bezier(0.32, 0.72, 0, 1);
+  /* 不要加 will-change：和 panel 的 backdrop-filter 叠在一起时，
+     Chromium 的页面截图会卡死（Playwright page.screenshot 超时）。 */
+}
+
+/* 图标是内联 SVG（见 ui/navigation.js）：emoji 的字形由系统字体决定，
+   Windows 和 Android 出来的形状差很多，撑不起统一观感。 */
+#ldfc-navigation .ldfc-nav-fab-glyph {
+  width: 25px;
+  height: 25px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+#ldfc-navigation[data-collapsed="true"] .ldfc-nav-fab {
+  cursor: grab;
+}
+
+#ldfc-navigation .ldfc-nav-fab:hover {
+  transform: translateY(-1px) scale(1.05);
+  filter: brightness(1.04) saturate(1.06);
+  box-shadow:
+    0 16px 32px -8px rgba(60, 48, 150, 0.62),
+    0 4px 12px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+#ldfc-navigation .ldfc-nav-fab:active {
+  transform: scale(0.94);
+  transition-duration: 110ms;
+}
+
+/* 展开态球把位置和外观交给面板：面板从球心长出来，球同时在
+   前 140ms 内淡出。两者在视觉上是同一个东西的两次形态。 */
+#ldfc-navigation[data-collapsed="false"] .ldfc-nav-fab {
+  opacity: 0;
+  transform: scale(0.86);
+  pointer-events: none;
+  transition:
+    opacity 120ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* 收起时反过来：面板先缩回，球最后一刻才浮现，避免中途看到两个图标。 */
+#ldfc-navigation[data-collapsed="true"] .ldfc-nav-fab {
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 120ms cubic-bezier(0.32, 0.72, 0, 1) 220ms,
+    transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 300ms cubic-bezier(0.32, 0.72, 0, 1),
+    filter 200ms ease;
+}
+
+#ldfc-navigation.ldfc-dragging .ldfc-nav-fab,
+#ldfc-navigation.ldfc-dragging .ldfc-nav-head {
+  cursor: grabbing;
+}
+
+/* 面板位置 / transform-origin / 收起比例全部由 JS 按展开方向写；
+   这里只负责尺寸与外观。动画只动 transform / border-radius /
+   内容透明度，不触发布局，展开时不会掉帧。
+   width 固定：计数变化不会让面板左右晃，量出来的宽也稳定。 */
+#ldfc-navigation .ldfc-nav-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 196px;
+  max-height: min(62vh, 420px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(38, 38, 45, 0.94), rgba(17, 17, 21, 0.96));
+  box-shadow:
+    0 28px 60px -18px rgba(0, 0, 0, 0.66),
+    0 8px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  transform: none;
+  transition:
+    transform var(--ldfc-nav-dur, 460ms) cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius var(--ldfc-nav-dur, 460ms) cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow var(--ldfc-nav-dur, 460ms) cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* 收起态保留完整布局，只做等比压缩 —— 这样 52×52 的视觉盒子正好
+   落在球上面，动画也能全程走合成线程。 */
+#ldfc-navigation[data-collapsed="true"] .ldfc-nav-panel {
+  transform: scale(var(--ldfc-panel-sx, 0.27), var(--ldfc-panel-sy, 0.2));
+  border-radius: var(--ldfc-panel-icon-radius, 15px);
+  box-shadow:
+    0 12px 26px -8px rgba(60, 48, 150, 0.6),
+    0 3px 9px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  transition:
+    transform var(--ldfc-nav-dur-fast, 360ms) cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius var(--ldfc-nav-dur-fast, 360ms) cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow var(--ldfc-nav-dur-fast, 360ms) cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* 收起态面板压在球下面，给它同款渐变，展开时再淡出。
+   这样从"图标"到"面板"的底色不会在开头突然跳变。 */
+#ldfc-navigation .ldfc-nav-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(115% 110% at 26% 14%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
+    linear-gradient(155deg, #7c8bf3 0%, #9b7bf0 48%, #61b6df 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ldfc-nav-dur-fast, 360ms) cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+#ldfc-navigation[data-collapsed="true"] .ldfc-nav-panel::before {
+  opacity: 1;
+}
+
+/* 文字比底板晚一点出现：先看到"图标在长大"，再读到面板内容。 */
+#ldfc-navigation .ldfc-nav-head,
+#ldfc-navigation .ldfc-nav-items {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--ldfc-nav-text-in, 180ms) cubic-bezier(0.32, 0.72, 0, 1)
+      var(--ldfc-nav-text-delay, 100ms),
+    transform var(--ldfc-nav-text-move, 260ms) cubic-bezier(0.32, 0.72, 0, 1)
+      var(--ldfc-nav-text-delay, 100ms);
+}
+
+#ldfc-navigation[data-collapsed="true"] .ldfc-nav-head,
+#ldfc-navigation[data-collapsed="true"] .ldfc-nav-items {
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity var(--ldfc-nav-text-out, 90ms) cubic-bezier(0.4, 0, 1, 1),
+    transform var(--ldfc-nav-text-out, 90ms) cubic-bezier(0.4, 0, 1, 1);
+}
+
+#ldfc-navigation .ldfc-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 4px 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  /* 拖动面板时不要顺带滚动页面 */
+  touch-action: none;
+}
+
+#ldfc-navigation .ldfc-nav-title {
+  color: #c9c9cf;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+#ldfc-navigation .ldfc-nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#ldfc-navigation .ldfc-nav-items button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 11px;
+  color: #eee;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 160ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+#ldfc-navigation .ldfc-nav-items button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(2px);
+}
+
+#ldfc-navigation .ldfc-nav-items button.active {
+  color: #fff;
+  background: rgba(126, 140, 240, 0.22);
+  box-shadow: inset 2px 0 0 #8c9bf5;
+}
+
+#ldfc-navigation .ldfc-nav-items button > span {
+  min-width: 28px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cfd0d8;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+#ldfc-navigation .ldfc-nav-items button.active > span {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+/* 收起以后仍然显示新回复数量，否则用户看不出核心功能有没有新内容 */
+#ldfc-navigation .ldfc-nav-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 2px solid rgba(18, 18, 21, 0.95);
+  border-radius: 999px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+#ldfc-navigation .ldfc-nav-badge[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ldfc-navigation .ldfc-nav-panel,
+  #ldfc-navigation .ldfc-nav-fab,
+  #ldfc-navigation[data-collapsed] .ldfc-nav-fab,
+  #ldfc-navigation .ldfc-nav-head,
+  #ldfc-navigation .ldfc-nav-items,
+  #ldfc-navigation .ldfc-nav-items button {
+    transition-duration: 1ms;
+    transition-delay: 0s;
+  }
+}
+/* 阅读页入口按钮的外观在 ui/launcher.js 的影子 DOM 里，
+   这里只负责"没有第三方按钮行时"自建的那一行。 */
+.ldfc-topic-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* 第三方脚本的按钮行是 flex：让它允许换行，插件那块（flex-basis:100%）
+   才能独占一整行并居中，而不是被挤成"同行第三格"。block 容器下无副作用。 */
+.cooked > .save-buttons-container {
+  flex-wrap: wrap;
+}
+
+.ldfc-topic-row {
+  position: relative;
+}
+
+/* 列表行悬停入口：与预览窗 dock、首楼按钮同一套视觉
+   （单色图标 + 悬停旋转 + 横向展开文字）。颜色全部 inherit / 中性半透明，
+   亮色与暗色主题都不用另写；也不再是旧版那三块彩色 pill。 */
+.ldfc-actions {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid rgba(127, 127, 127, 0.16);
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.1);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  color: inherit;
+  z-index: 5;
+}
+
+/* linux.do 重渲染列表行时会重写整条 class 属性，附加的 ldFC 类名会被冲掉。
+   悬浮显示如果只挂在 .ldfc-topic-row 上，行一旦被重渲染按钮就永久不可见，
+   所以这里改用原站自己的 data-topic-id 作为判据（纯 CSS，无额外开销）。 */
+[data-topic-id]:hover > .ldfc-actions,
+.ldfc-topic-row:hover .ldfc-actions,
+[data-topic-id]:hover .ldfc-actions {
+  display: inline-flex;
+}
+
+/* 表格行 / 搜索卡片没有 .ldfc-topic-row 时也要有定位上下文，
+   否则按钮层的 absolute 会一路找到页面根节点上。 */
+tr[data-topic-id],
+.fps-result[data-topic-id],
+.search-result[data-topic-id] {
+  position: relative;
+}
+
+/* ===== 多选（interaction/multiSelect.js） =====
+   长按行按钮组进入多选后：按钮组常显，点按钮 = 勾选这一行。 */
+html.ldfc-selecting [data-topic-id] > .ldfc-actions,
+html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
+  display: inline-flex;
+}
+
+/* 被选中的行：整行淡紫底 + 内描边。
+   表格行（推荐 / 相关）的单元格要单独上色，否则底色看不出来。 */
+.ldfc-selected {
+  box-shadow: inset 0 0 0 2px rgba(140, 155, 245, 0.85);
+  border-radius: 10px;
+}
+
+.ldfc-selected,
+.ldfc-selected > td {
+  background: rgba(126, 140, 240, 0.14);
+}
+
+/* 长按成功的那一下：整组按钮抖一次，作为"已进入多选"的确认。
+   注意每帧都要带上 translateY(-50%)：按钮组是垂直居中的绝对定位，
+   只写 translateX 会让它跳到行的顶部。 */
+.ldfc-actions.ldfc-shake {
+  animation: ldfc-shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes ldfc-shake {
+  10%,
+  90% {
+    transform: translateY(-50%) translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateY(-50%) translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateY(-50%) translateX(-3px);
+  }
+  40%,
+  60% {
+    transform: translateY(-50%) translateX(3px);
+  }
+}
+
+/* 已选数量：贴在悬浮球上方的小标签，不是按钮 */
+.ldfc-select-count {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(126, 140, 240, 0.95);
+  color: #fff;
+  font: 600 11px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px -6px rgba(60, 48, 150, 0.8);
+}
+
+.ldfc-swipe-right {
+  transform: translateX(16px);
+  transition: transform 120ms ease;
+}
+
+.ldfc-swipe-left {
+  transform: translateX(-16px);
+  transition: transform 120ms ease;
+}
+
+@media (min-width: 1024px) {
+  .ldfc-swipe-right,
+  .ldfc-swipe-left {
+    transform: none;
+  }
+}
+
+.ldfc-action {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: 600 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: background 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-action:hover,
+.ldfc-action:focus-visible {
+  background: rgba(127, 127, 127, 0.16);
+  outline: none;
+}
+
+.ldfc-action-icon {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  opacity: 0.75;
+  transition:
+    transform 460ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 200ms ease;
+}
+
+.ldfc-action:hover .ldfc-action-icon,
+.ldfc-action:focus-visible .ldfc-action-icon {
+  transform: rotate(360deg) scale(1.08);
+  opacity: 1;
+}
+
+.ldfc-action svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ldfc-action-text {
+  display: inline-block;
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    max-width 340ms cubic-bezier(0.32, 0.72, 0, 1),
+    margin-left 340ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 340ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 180ms ease 40ms;
+}
+
+.ldfc-action:hover .ldfc-action-text,
+.ldfc-action:focus-visible .ldfc-action-text {
+  max-width: 90px;
+  margin-left: 6px;
+  opacity: 1;
+  transform: none;
+}
+
+/* 「已在某个池子里」：与首楼 / 预览窗 dock 同一套底线光效。
+   只改颜色和一条 2.5px 线，不改宽高，点亮瞬间按钮不会跳位。 */
+.ldfc-action {
+  position: relative;
+}
+
+.ldfc-action[data-pool="INTERESTED"].is-in-pool { --ldfc-tint: #ffb454; }
+.ldfc-action[data-pool="READ"].is-in-pool { --ldfc-tint: #5fd0a8; }
+.ldfc-action[data-pool="DISMISSED"].is-in-pool { --ldfc-tint: #e0777d; }
+
+.ldfc-action.is-in-pool {
+  background: rgba(127, 127, 127, 0.2);
+}
+
+.ldfc-action.is-in-pool .ldfc-action-icon {
+  opacity: 1;
+  color: var(--ldfc-tint);
+}
+
+.ldfc-action.is-in-pool::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 2px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), var(--ldfc-tint), rgba(0, 0, 0, 0));
+  box-shadow: 0 0 8px var(--ldfc-tint);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ldfc-action,
+  .ldfc-action-icon,
+  .ldfc-action-text {
+    transition-duration: 1ms;
+  }
+}
+
+/* 真正的行折叠：先把真实高度写成定值再收到 0。
+   只靠 max-height: auto → 0 是不生效的（CSS 不能从 auto 插值），
+   所以原来实际只有淡出、高度是硬切。这里同时把 td 的 padding 和字号
+   收掉，否则单元格内容会把行重新撑开。 */
+.ldfc-collapsing {
+  opacity: 0;
+  overflow: hidden;
+  transition: opacity 200ms ease, height 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-collapsing > td {
+  overflow: hidden;
+  transition:
+    padding 300ms cubic-bezier(0.32, 0.72, 0, 1),
+    font-size 300ms cubic-bezier(0.32, 0.72, 0, 1),
+    line-height 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-row-hidden {
+  display: none !important;
+}
+
+#ldfc-toast-container {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 2147483004;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.ldfc-toast {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #fff;
+  background: rgba(24, 24, 27, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.ldfc-toast button {
+  border: 0;
+  color: #111;
+  background: #ffd43b;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#ldfc-panel {
+  position: fixed;
+  right: 16px;
+  top: 72px;
+  bottom: 24px;
+  width: min(420px, calc(100vw - 190px));
+  box-sizing: border-box;
+  z-index: 2147483002;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #eee;
+  background: rgba(18, 18, 22, 0.94);
+  box-shadow:
+    0 30px 70px -30px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+#ldfc-panel::-webkit-scrollbar,
+#ldfc-settings::-webkit-scrollbar {
+  width: 10px;
+}
+
+#ldfc-panel::-webkit-scrollbar-thumb,
+#ldfc-settings::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: content-box;
+}
+
+#ldfc-panel::-webkit-scrollbar-thumb:hover,
+#ldfc-settings::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: content-box;
+}
+
+#ldfc-panel h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* 信息池面板的标题行：标题在左，关闭按钮在右。
+   每个池都自带关闭入口 —— 不能要求用户先切到「设置」才有 ×。 */
+.ldfc-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ldfc-panel-header h2 {
+  margin: 0;
+}
+
+.ldfc-panel-close {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eee;
+  font: 400 18px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 140ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-panel-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.ldfc-panel-close:active {
+  transform: scale(0.92);
+}
+
+.ldfc-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ldfc-panel-item {
+  padding: 12px 12px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.055);
+  transition:
+    background 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-panel-item:hover {
+  background: rgba(255, 255, 255, 0.085);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.ldfc-panel-item-header {
+  display: flex;
+  gap: 8px;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.ldfc-panel-title {
+  color: #fff;
+  font-weight: 600;
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.ldfc-panel-title:hover {
+  color: #fff;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.ldfc-panel-count {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #e9e9f0;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ldfc-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ldfc-panel-actions button {
+  padding: 6px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: #dcdce4;
+  font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 200ms ease;
+}
+
+.ldfc-panel-actions button:hover {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.ldfc-panel-actions button:active {
+  transform: scale(0.98);
+}
+
+/* 「移入…」展开的目标池：一排小胶囊，用的是同一套按钮外观。
+   放成 <select> 的话，弹层会被面板的 overflow:auto 裁掉。 */
+.ldfc-move-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+.ldfc-move-targets[hidden] {
+  display: none;
+}
+
+.ldfc-move-targets button {
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: #dcdce4;
+  font: 600 11.5px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-move-targets button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.ldfc-move-targets button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* 池内多选：长按任意一条记录进入，标题行换成「已选 N / 移入… / 完成」。
+   多选态隐藏每条记录自己的操作按钮，点记录任意位置 = 勾选。 */
+.ldfc-pool-selecting .ldfc-panel-item {
+  cursor: pointer;
+}
+
+.ldfc-pool-selecting .ldfc-panel-item .ldfc-panel-actions {
+  display: none;
+}
+
+.ldfc-pool-selecting .ldfc-panel-item .ldfc-panel-title {
+  pointer-events: none;
+}
+
+/* ===== 拖拽投放（interaction/multiSelect.js） =====
+   胶囊跟手 → 五个池子在半圆上展开 → 松手弹回原位。 */
+.ldfc-actions.ldfc-dragging {
+  position: fixed !important;
+  /* 只压掉 base 里的 right:12px；top 交给内联样式控制，
+     这里如果写 top:auto !important 会把 JS 设的 top 一起压掉（曾经踩过）。 */
+  right: auto !important;
+  /* 缩小到 0.72：胶囊本身 123px 宽，比格间距还宽，不缩就必然压住相邻格子。
+     缩小后它在扇形里"悬"得住，也符合"被拿起来了"的观感。 */
+  transform: scale(0.72) !important;
+  transform-origin: center;
+  z-index: 2147483000;
+  cursor: grabbing;
+  opacity: 0.94;
+  box-shadow:
+    0 18px 34px -14px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+/* 松手回弹：只补位置过渡，300ms 后 JS 会清掉内联样式。 */
+.ldfc-actions.ldfc-snap-back {
+  transition:
+    left 260ms cubic-bezier(0.32, 0.72, 0, 1),
+    top 260ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-drop {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: 2147482999;
+  pointer-events: none;
+}
+
+/* 环形轨道：只在弧线附近留一圈雾，中间保持透明。
+   实心半圆会有硬直底边、糊住整块页面，读起来像"灰云"而不是"轨道"。 */
+.ldfc-drop::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--r, 132px) * -1);
+  top: calc(var(--r, 132px) * -1);
+  width: calc(var(--r, 132px) * 2);
+  height: var(--r, 132px);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: radial-gradient(
+    closest-side at 50% 100%,
+    rgba(127, 127, 127, 0) 52%,
+    rgba(127, 127, 127, 0.15) 74%,
+    rgba(127, 127, 127, 0.06) 92%,
+    rgba(127, 127, 127, 0) 100%
+  );
+  opacity: 0;
+  transform: scale(0.72);
+  transform-origin: 50% 100%;
+  transition:
+    opacity 200ms ease,
+    transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-drop.ldfc-drop-flipped::before {
+  top: 0;
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  transform-origin: 50% 0;
+}
+
+.ldfc-drop.ldfc-drop-open::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 圆心锚点：扇形是从这里长出来的，胶囊被拖走后它就是"原点"。 */
+.ldfc-drop-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(127, 127, 127, 0.45);
+  background: rgba(127, 127, 127, 0.12);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+/* 锚点 → 胶囊的牵引线：长度/角度由 syncLink() 每帧写入。 */
+.ldfc-drop-link {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--len, 0px);
+  height: 1.5px;
+  margin-top: -0.75px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(127, 127, 127, 0.42),
+    rgba(127, 127, 127, 0.1)
+  );
+  transform-origin: 0 50%;
+  transform: rotate(var(--ang, 0deg));
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.ldfc-drop.ldfc-drop-open .ldfc-drop-anchor,
+.ldfc-drop.ldfc-drop-open .ldfc-drop-link {
+  opacity: 1;
+}
+
+.ldfc-drop-item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  /* 中性色：浅色/深色主题都不用另写（和胶囊本身同一套取色逻辑） */
+  color: inherit;
+  background: rgba(127, 127, 127, 0.18);
+  border: 1px solid rgba(127, 127, 127, 0.3);
+  box-shadow:
+    0 12px 24px -14px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  opacity: 0;
+  transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(0.6);
+  transition:
+    transform 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 180ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+/* 展开时按扇形顺序依次弹出（22ms 错峰），比齐刷刷一起冒出来自然。 */
+.ldfc-drop.ldfc-drop-open .ldfc-drop-item {
+  opacity: 1;
+  transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(1);
+  transition-delay: var(--delay, 0ms);
+}
+
+.ldfc-drop.ldfc-drop-open .ldfc-drop-item:nth-child(1) {
+  --delay: 0ms;
+}
+
+.ldfc-drop.ldfc-drop-open .ldfc-drop-item:nth-child(2) {
+  --delay: 22ms;
+}
+
+.ldfc-drop.ldfc-drop-open .ldfc-drop-item:nth-child(3) {
+  --delay: 44ms;
+}
+
+.ldfc-drop.ldfc-drop-open .ldfc-drop-item:nth-child(4) {
+  --delay: 66ms;
+}
+
+.ldfc-drop.ldfc-drop-open .ldfc-drop-item:nth-child(5) {
+  --delay: 88ms;
+}
+
+.ldfc-drop-item svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ldfc-drop.ldfc-drop-open .ldfc-drop-item.ldfc-hot {
+  background: rgba(127, 127, 127, 0.4);
+  border-color: rgba(127, 127, 127, 0.72);
+  box-shadow:
+    0 16px 28px -12px rgba(0, 0, 0, 0.6),
+    0 0 0 3px rgba(127, 127, 127, 0.22);
+  transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(1.16);
+  transition-delay: 0ms;
+}
+
+.ldfc-drop-item.ldfc-disabled {
+  opacity: 0.45 !important;
+}
+
+/* .ldfc-selected 的通用样式在 .ldfc-panel-item 之前定义，同权重会被后者盖掉，
+   这里用双类名提权，保证面板里的选中态可见。 */
+.ldfc-panel-item.ldfc-selected {
+  background: rgba(126, 140, 240, 0.18);
+  border-color: rgba(140, 155, 245, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(140, 155, 245, 0.8);
+}
+
+.ldfc-bulk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.ldfc-bulk-count {
+  font-size: 12px;
+  color: #dcdce4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ldfc-bulk button {
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: #dcdce4;
+  font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 180ms ease;
+}
+
+.ldfc-bulk button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.ldfc-bulk button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ldfc-bulk-targets {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.ldfc-sort-row {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ldfc-sort-row button {
+  border: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: transparent;
+  color: #b9b9c4;
+  font: 600 12px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 200ms ease;
+}
+
+.ldfc-sort-row button:hover {
+  color: #fff;
+}
+
+.ldfc-sort-row button.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.ldfc-panel-excerpt {
+  margin: 8px 0 0;
+  color: #ddd;
+  font-size: 13px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.ldfc-preview-author {
+  color: #9ad8ff;
+  font-weight: 600;
+}
+
+.ldfc-panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  color: #a9a9b3;
+  font-size: 12px;
+}
+
+.ldfc-panel-footer {
+  margin: 12px 0 0;
+  color: #8f8f99;
+  font-size: 12px;
+  text-align: center;
+}
+
+#ldfc-settings h3 {
+  margin: 20px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #a9a9b6;
+}
+
+#ldfc-settings .ldfc-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+#ldfc-settings .ldfc-settings-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+#ldfc-settings .ldfc-settings-close {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eee;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#ldfc-settings .ldfc-settings-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.ldfc-account {
+  margin: 0 0 14px;
+  color: #bbb;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#ldfc-settings {
+  position: fixed;
+  right: 16px;
+  top: 72px;
+  bottom: 24px;
+  width: min(420px, calc(100vw - 190px));
+  box-sizing: border-box;
+  z-index: 2147483003;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #eee;
+  background: rgba(18, 18, 22, 0.95);
+  box-shadow:
+    0 30px 70px -30px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+/* 二级面板（信息池 / 设置）：和导航面板同一套动画语言 ——
+   从导航面板（收起时是悬浮球）的位置放大出来。
+   transform-origin 由 ui/navigation.js 按球的当前屏幕位置写入；
+   面板固定在右侧、球在任意角落时，原点落在面板外也是合法的。
+   动画本身用 Web Animations 播（见 revealSheet），这里只保留原点。 */
+#ldfc-panel,
+#ldfc-settings {
+  transform-origin: var(--ldfc-sheet-ox, 100%) var(--ldfc-sheet-oy, 0%);
+}
+
+.ldfc-settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ldfc-settings-actions button,
+#ldfc-settings-launch {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e9e9f0;
+  font: 600 13px/1.25 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 200ms ease,
+    transform 120ms ease;
+}
+
+.ldfc-settings-actions button:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.ldfc-settings-actions button:active {
+  transform: scale(0.985);
+}
+
+.ldfc-settings-actions button:focus-visible,
+#ldfc-settings-launch:focus-visible {
+  outline: 2px solid rgba(122, 167, 255, 0.7);
+  outline-offset: 2px;
+}
+
+/* 主操作（保存配置 / 立即同步）用浅色实心，和大片幽灵按钮拉开层次。 */
+#ldfc-sync-save,
+#ldfc-sync-now {
+  border-color: transparent;
+  background: #e8e8ef;
+  color: #14141a;
+}
+
+#ldfc-sync-save:hover,
+#ldfc-sync-now:hover {
+  border-color: transparent;
+  background: #fff;
+  color: #14141a;
+}
+
+#ldfc-settings-launch {
+  background: rgba(255, 255, 255, 0.14);
+  color: #eee;
+  text-align: left;
+}
+
+.ldfc-onboarding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ldfc-onboarding-card {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  color: #eee;
+  background: rgba(255, 255, 255, 0.07);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ldfc-onboarding-card span {
+  display: block;
+  margin-top: 5px;
+  color: #ccc;
+  font-size: 12px;
+}
+
+.ldfc-privacy {
+  margin-top: 14px;
+  color: #bbb;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ldfc-sync-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ldfc-sync-section h3 {
+  margin-top: 0;
+}
+
+/* 云同步标题行：标题 + 问号说明按钮。 */
+.ldfc-sync-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ldfc-sync-title-row h3 {
+  margin: 0;
+}
+
+.ldfc-sync-help-btn {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: transparent;
+  color: #c9c9d4;
+  font: 700 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.ldfc-sync-help-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+}
+
+.ldfc-sync-help-btn:focus-visible {
+  outline: 2px solid rgba(122, 167, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.ldfc-sync-help {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #c9c9d4;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ldfc-sync-help-step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 8px;
+}
+
+.ldfc-sync-help-step:last-of-type {
+  margin-bottom: 4px;
+}
+
+.ldfc-sync-help-step strong {
+  color: #eee;
+  font-weight: 600;
+}
+
+.ldfc-sync-help .ldfc-sync-note {
+  margin: 6px 0 0;
+  color: #9f9faa;
+}
+
+.ldfc-sync-note {
+  margin: 0 0 10px;
+  color: #b6b6c0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ldfc-sync-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 12px;
+  color: #ddd;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.ldfc-sync-check input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 1px 0 0;
+  accent-color: #7aa7ff;
+  cursor: pointer;
+}
+
+.ldfc-sync-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.ldfc-sync-field label {
+  color: #c8c8d2;
+  font-size: 12px;
+}
+
+.ldfc-sync-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9px;
+  color: #eee;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.ldfc-sync-field input:focus {
+  outline: none;
+  border-color: rgba(122, 167, 255, 0.8);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 0 3px rgba(122, 167, 255, 0.15);
+}
+
+/* 地址填错时在输入框下面直接说，不用等点保存 */
+.ldfc-sync-field[data-invalid="true"] input {
+  border-color: rgba(255, 120, 120, 0.75);
+  background: rgba(255, 90, 90, 0.06);
+}
+
+.ldfc-sync-field[data-invalid="true"] input:focus {
+  border-color: rgba(255, 120, 120, 0.9);
+  box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.16);
+}
+
+.ldfc-sync-field-error {
+  margin: 0;
+  color: #ff9a9a;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.ldfc-sync-status {
+  margin: 6px 0 0;
+  color: #bbb;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* ===== 自带预览窗口（ui/preview.js） =====
+   结构沿用第三方脚本的 .ldp-* 类名（ui/launcher.js 依赖它们注入三按钮），
+   外观用 #ldfc-preview 作用域收回来，避免和第三方脚本的样式互相覆盖。 */
+#ldfc-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: rgba(8, 8, 10, 0.42);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  animation: ldfc-pv-fade 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+#ldfc-preview .ldp-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--secondary, #fff);
+  color: var(--primary, #222);
+  box-shadow:
+    0 40px 90px -28px rgba(0, 0, 0, 0.55),
+    0 2px 10px rgba(0, 0, 0, 0.2);
+  animation: ldfc-pv-rise 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+#ldfc-preview .ldp-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--primary-low, #e6e6e6);
+}
+
+#ldfc-preview .ldfc-pv-headline {
+  flex: 1;
+  min-width: 0;
+}
+
+#ldfc-preview .ldp-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+#ldfc-preview .ldp-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+#ldfc-preview .ldp-head-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+#ldfc-preview .ldp-close {
+  padding: 2px 7px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 160ms ease, background 160ms ease;
+}
+
+#ldfc-preview .ldp-close:hover {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.14);
+}
+
+#ldfc-preview .ldp-body {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 18px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#ldfc-preview .ldp-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid var(--primary-low, #e6e6e6);
+}
+
+#ldfc-preview .ldp-f-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--tertiary, #0088cc);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+#ldfc-preview .ldfc-pv-post {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--primary-low, #eee);
+}
+
+#ldfc-preview .ldfc-pv-post:last-child {
+  border-bottom: 0;
+}
+
+#ldfc-preview .ldfc-pv-post-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+#ldfc-preview .ldfc-pv-author {
+  font-weight: 600;
+}
+
+#ldfc-preview .ldfc-pv-body {
+  font-size: 15px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+#ldfc-preview .ldfc-pv-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+#ldfc-preview .ldfc-pv-body pre {
+  max-width: 100%;
+  overflow: auto;
+}
+
+#ldfc-preview .ldfc-pv-more {
+  display: block;
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 10px;
+  border: 1px dashed var(--primary-low, #ddd);
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+#ldfc-preview .ldfc-pv-more[hidden] {
+  display: none;
+}
+
+#ldfc-preview .ldfc-pv-empty,
+#ldfc-preview .ldfc-pv-error {
+  margin: 16px 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+#ldfc-preview .ldfc-pv-error {
+  color: #d23b3b;
+  opacity: 1;
+}
+
+/* ===== 预览窗里主贴下方的操作 dock（ui/launcher.js） =====
+   dock 现在挂在 .ldp-modal > .ldp-body 里，位置正好在主贴与「评论」标题之间，
+   和参考脚本把按钮塞进一楼 .cooked 的落点一致。
+   overlay 不再改成纵向排列，预览卡片保持引擎自己的 90vh 高度。 */
+.ldp-body > .ldfc-preview-dock {
+  /* 外层文档的选择器优先级高于影子树里的 :host，所以布局写在这里：
+     纵向排列 + 居中，让 dock 按内容宽度收缩，而不是撑满整个预览窗宽度。 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 2px 0 10px;
+  animation: ldfc-dock-in 300ms cubic-bezier(0.32, 0.72, 0, 1) 60ms both;
+}
+
+@keyframes ldfc-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 骨架：先把窗口和占位画出来，内容到了再替换 —— 打开速度靠这个撑住 */
+#ldfc-preview .ldfc-pv-sk {
+  height: 12px;
+  margin: 8px 0;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(127, 127, 127, 0.18),
+    rgba(127, 127, 127, 0.08),
+    rgba(127, 127, 127, 0.18)
+  );
+  background-size: 200% 100%;
+  animation: ldfc-pv-shimmer 1.1s linear infinite;
+}
+
+#ldfc-preview .ldfc-pv-sk-title {
+  display: block;
+  width: min(320px, 60%);
+  height: 18px;
+  margin: 2px 0;
+}
+
+@keyframes ldfc-pv-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ldfc-pv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ldfc-pv-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* 设置面板里的开关 */
+.ldfc-preview-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ddd;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.ldfc-preview-toggle input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+/* 动画速度滑杆：0.1×（慢 10 倍）~ 2×（快 2 倍） */
+.ldfc-anim-speed {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ddd;
+  font-size: 12px;
+}
+
+.ldfc-anim-speed-title {
+  white-space: nowrap;
+  color: #c8c8d2;
+}
+
+.ldfc-anim-speed input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  accent-color: #7aa7ff;
+}
+
+.ldfc-anim-speed output {
+  min-width: 44px;
+  text-align: right;
+  color: #eee;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 启动形态：一级面板 / 悬浮球 二选一 */
+.ldfc-start-mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ddd;
+  font-size: 12px;
+}
+
+.ldfc-start-mode > span {
+  white-space: nowrap;
+  color: #c8c8d2;
+}
+
+.ldfc-start-mode .ldfc-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ldfc-start-mode .ldfc-seg button {
+  border: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: #b9b9c4;
+  font: 600 12px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 180ms ease;
+}
+
+.ldfc-start-mode .ldfc-seg button:hover {
+  color: #fff;
+}
+
+.ldfc-start-mode .ldfc-seg button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ldfc-preview,
+  #ldfc-preview .ldp-modal,
+  #ldfc-preview .ldfc-pv-sk,
+  .ldp-body > .ldfc-preview-dock {
+    animation-duration: 1ms;
+    animation-delay: 0s;
+  }
+}
+
+/* ===== 列表行的主题创建时间（ui/listMeta.js） =====
+   只在能读到真实"创建日期"的行上出现；读不到就不插节点。
+   颜色按新旧分三档，亮色/暗色主题下都保持可读。 */
+.ldfc-topic-created {
+  margin-left: 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.72;
+}
+
+.ldfc-topic-created.is-old {
+  color: #d97706;
+  opacity: 0.9;
+}
+
+.ldfc-topic-created.is-ancient {
+  color: #8b8b95;
+  opacity: 0.85;
+}
+
+/* ===== 预览窗「通知级别」菜单（ui/launcher.js） =====
+   挂在 body 下，不在预览窗的影子树里：dock 上那条 ldfc-dock-in 动画
+   带 fill: both，结束后仍留着 identity 的 transform，会给
+   position:fixed 的后代造出包含块，菜单按视口算的坐标会被劫持。
+   所有选择器都带 .ldfc-notify-menu 前缀，避免套到工具排的胶囊按钮上。 */
+.ldfc-notify-menu {
+  position: fixed;
+  z-index: 2147483600;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(28, 28, 33, 0.94);
+  box-shadow:
+    0 24px 60px -20px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  transform-origin: var(--ldfc-menu-origin, 50% 0%);
+}
+
+.ldfc-notify-menu button {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #d7d7df;
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.ldfc-notify-menu button:hover,
+.ldfc-notify-menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  outline: none;
+}
+
+.ldfc-notify-menu button[aria-checked="true"] {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.ldfc-notify-ico {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  flex: 0 0 auto;
+  color: #9a9aa6;
+}
+
+.ldfc-notify-menu button[aria-checked="true"] .ldfc-notify-ico,
+.ldfc-notify-menu button:hover .ldfc-notify-ico {
+  color: #4aa8ff;
+}
+
+.ldfc-notify-ico svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 460ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-notify-menu button:hover .ldfc-notify-ico svg {
+  transform: rotate(-12deg) scale(1.08);
+}
+
+.ldfc-notify-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ldfc-notify-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ldfc-notify-desc {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #a8a8b3;
+}
+
+.ldfc-notify-menu button[aria-checked="true"] .ldfc-notify-desc {
+  color: #c6c6d1;
+}
+
+.ldfc-notify-menu[aria-busy="true"] {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.ldfc-notify-menu button[hidden] {
+  display: none;
+}
+
+/* 手动接管后才出现的出口：解除接管、交还给信息池联动 */
+.ldfc-notify-menu .ldfc-notify-follow {
+  justify-content: center;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  font-size: 12px;
+  color: #9a9aa6;
+}
+
+/* 设置面板：池子 → 通知级别 的映射行 */
+.ldfc-notify-map-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+
+.ldfc-notify-map {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: #d7d7df;
+}
+
+.ldfc-notify-map select {
+  min-width: 96px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(18, 18, 22, 0.72);
+  color: #e6e6ee;
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ldfc-notify-menu button,
+  .ldfc-notify-ico svg {
+    transition-duration: 1ms;
+  }
+}

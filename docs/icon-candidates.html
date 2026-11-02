@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>LDFC 悬浮球图标候选</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 36px 40px 44px;
+    background: #141418;
+    color: #e8e8ee;
+    font: 400 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: 0.01em; }
+  p.lead { margin: 0 0 28px; color: #9b9ba8; font-size: 13px; }
+  .row { display: flex; gap: 22px; align-items: flex-start; }
+  .card {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 14px 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.035);
+  }
+  .ball {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border-radius: 45%;
+    color: #fff;
+    background:
+      radial-gradient(115% 110% at 26% 14%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 48%),
+      linear-gradient(155deg, #7c8bf3 0%, #9b7bf0 48%, #61b6df 100%);
+    box-shadow:
+      0 12px 26px -8px rgba(60,48,150,0.6),
+      0 3px 9px rgba(0,0,0,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.6),
+      inset 0 -1px 0 rgba(0,0,0,0.1);
+  }
+  .ball.big { width: 156px; height: 156px; border-radius: 44px; }
+  .ball.small { width: 52px; height: 52px; border-radius: 15px; }
+  svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .ball.big svg { width: 78px; height: 78px; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3)); }
+  .ball.small svg { width: 25px; height: 25px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+  .name { font-weight: 700; font-size: 13.5px; }
+  .desc { color: #9b9ba8; font-size: 11.5px; text-align: center; line-height: 1.45; }
+  .idx {
+    position: absolute; top: -10px; left: -10px;
+    width: 24px; height: 24px; border-radius: 999px;
+    display: grid; place-items: center;
+    background: #141418; border: 1px solid rgba(255,255,255,0.18);
+    color: #cfcfda; font-size: 12px; font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<h1>LDFC 悬浮球图标候选（5 版）</h1>
+<p class="lead">同一个球底色，只换中间的图形。左边大图看形状，右边小图是真实 52px 尺寸下的样子。</p>
+<div class="row">
+  <div class="card">
+    <div class="ball big"><span class="idx">1</span>
+      <svg viewBox="0 0 24 24">
+        <path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/>
+        <path d="m4.5 11.9 7.5 3.9 7.5-3.9"/>
+        <path d="m4.5 16.4 7.5 3.9 7.5-3.9"/>
+      </svg>
+    </div>
+    <div class="ball small">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/>
+        <path d="m4.5 11.9 7.5 3.9 7.5-3.9"/>
+        <path d="m4.5 16.4 7.5 3.9 7.5-3.9"/>
+      </svg>
+    </div>
+    <div class="name">① 三层堆叠（现状）</div>
+    <div class="desc">最稳，已用了一整轮；含义偏"分层"</div>
+  </div>
+
+  <div class="card">
+    <div class="ball big"><span class="idx">2</span>
+      <svg viewBox="0 0 24 24">
+        <rect x="4.2" y="4.2" width="6.6" height="6.6" rx="2.1"/>
+        <rect x="13.2" y="4.2" width="6.6" height="6.6" rx="2.1"/>
+        <rect x="4.2" y="13.2" width="6.6" height="6.6" rx="2.1"/>
+        <rect x="13.2" y="13.2" width="6.6" height="6.6" rx="2.1"/>
+      </svg>
+    </div>
+    <div class="ball small">
+      <svg viewBox="0 0 24 24">
+        <rect x="4.2" y="4.2" width="6.6" height="6.6" rx="2.1"/>
+        <rect x="13.2" y="4.2" width="6.6" height="6.6" rx="2.1"/>
+        <rect x="4.2" y="13.2" width="6.6" height="6.6" rx="2.1"/>
+        <rect x="13.2" y="13.2" width="6.6" height="6.6" rx="2.1"/>
+      </svg>
+    </div>
+    <div class="name">② 四格（四个池子）</div>
+    <div class="desc">和"信息池"语义最贴：四格就是四个池；52px 下也清晰</div>
+  </div>
+
+  <div class="card">
+    <div class="ball big"><span class="idx">3</span>
+      <svg viewBox="0 0 24 24">
+        <path d="M4.6 7.2h11.6"/>
+        <path d="M4.6 12h8.4"/>
+        <path d="M4.6 16.8h6.4"/>
+        <circle cx="18.6" cy="16.8" r="1.7" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+    <div class="ball small">
+      <svg viewBox="0 0 24 24">
+        <path d="M4.6 7.2h11.6"/>
+        <path d="M4.6 12h8.4"/>
+        <path d="M4.6 16.8h6.4"/>
+        <circle cx="18.6" cy="16.8" r="1.7" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+    <div class="name">③ 信息流三行</div>
+    <div class="desc">像一张列表，直白；但和站点本身的话题列表略重</div>
+  </div>
+
+  <div class="card">
+    <div class="ball big"><span class="idx">4</span>
+      <svg viewBox="0 0 24 24">
+        <path d="M6.9 4.6h10.2a1.7 1.7 0 0 1 1.7 1.7v13.2a.75.75 0 0 1-1.16.63L12 16.4l-5.64 3.73A.75.75 0 0 1 5.2 19.5V6.3a1.7 1.7 0 0 1 1.7-1.7Z"/>
+      </svg>
+    </div>
+    <div class="ball small">
+      <svg viewBox="0 0 24 24">
+        <path d="M6.9 4.6h10.2a1.7 1.7 0 0 1 1.7 1.7v13.2a.75.75 0 0 1-1.16.63L12 16.4l-5.64 3.73A.75.75 0 0 1 5.2 19.5V6.3a1.7 1.7 0 0 1 1.7-1.7Z"/>
+      </svg>
+    </div>
+    <div class="name">④ 书签</div>
+    <div class="desc">"收藏 / 想看"的通用符号；偏重"感兴趣"，不覆盖全部五区</div>
+  </div>
+
+  <div class="card">
+    <div class="ball big"><span class="idx">5</span>
+      <svg viewBox="0 0 24 24">
+        <path d="M4.6 5.4h14.8l-5.7 6.7v5.4l-3.4 2v-7.4L4.6 5.4Z"/>
+      </svg>
+    </div>
+    <div class="ball small">
+      <svg viewBox="0 0 24 24">
+        <path d="M4.6 5.4h14.8l-5.7 6.7v5.4l-3.4 2v-7.4L4.6 5.4Z"/>
+      </svg>
+    </div>
+    <div class="name">⑤ 漏斗（过滤）</div>
+    <div class="desc">"把帖子分流进不同池子"最直白；略像工具箱而不是阅读</div>
+  </div>
+</div>
+</body>
+</html>

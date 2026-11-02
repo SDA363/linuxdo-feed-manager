@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>LDFC 池子投放面板 UI 候选（5 版）</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 30px 34px 26px;
+    background: #141418;
+    color: #e8e8ee;
+    font: 400 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { margin: 0 0 6px; font-size: 19px; font-weight: 700; }
+  p.lead { margin: 0 0 20px; color: #9b9ba8; font-size: 12.5px; max-width: 1120px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .card {
+    border: 1px solid rgba(255,255,255,0.075);
+    border-radius: 20px;
+    background: rgba(255,255,255,0.032);
+    padding: 14px 14px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 { margin: 0; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .no {
+    width: 22px; height: 22px; border-radius: 999px; flex: none;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    font-size: 12px; font-weight: 700; color: #e2e2ee;
+  }
+  .tag { margin-left: auto; font-size: 11px; font-weight: 600; color: #8e8ea0; }
+  .notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: 11.8px; line-height: 1.5; color: #9b9ba8; }
+  .notes b { color: #cdcddc; font-weight: 600; }
+  .notes .bad b { color: #e5a3a3; }
+  .notes .good b { color: #9fd6b4; }
+
+  .stage {
+    position: relative;
+    height: 262px;
+    border-radius: 16px;
+    background:
+      radial-gradient(120% 90% at 18% 12%, rgba(126,140,243,0.14) 0%, rgba(126,140,243,0) 55%),
+      linear-gradient(160deg, #1b1b21 0%, #16161b 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+  .stage.tall { height: 300px; }
+  .stage.short { height: 268px; }
+  .fake-row { position: absolute; left: 24px; height: 22px; border-radius: 7px; background: rgba(255,255,255,0.042); }
+  .fake-row.a { top: 22px; width: 46%; }
+  .fake-row.b { top: 56px; width: 68%; }
+  .fake-row.c { top: 90px; width: 57%; }
+  .fake-row.d { top: 124px; width: 74%; }
+
+  svg.ic { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+  .ball {
+    position: absolute; display: grid; place-items: center; color: #fff;
+    border-radius: 42%;
+    background:
+      radial-gradient(115% 110% at 26% 14%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 48%),
+      linear-gradient(155deg, #7c8bf3 0%, #9b7bf0 48%, #61b6df 100%);
+    box-shadow: 0 14px 30px -10px rgba(60,48,150,0.7), 0 3px 9px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+  .ball.dragging {
+    box-shadow: 0 26px 44px -14px rgba(60,48,150,0.9), 0 6px 14px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.65);
+    transform: rotate(-5deg) scale(1.04);
+  }
+  .ball .count {
+    position: absolute; top: -8px; right: -8px; min-width: 21px; height: 21px; padding: 0 5px;
+    border-radius: 999px; display: grid; place-items: center;
+    font-size: 11px; font-weight: 800; color: #241d3d; background: #f6f4ff;
+    box-shadow: 0 2px 7px rgba(0,0,0,0.4);
+  }
+  .hint { position: absolute; font-size: 10.8px; color: #8f8fa2; }
+
+  .pool {
+    display: grid; place-items: center; color: #d2d2e4;
+    background: rgba(255,255,255,0.085);
+    border: 1px solid rgba(255,255,255,0.16);
+  }
+  .pool svg { width: 22px; height: 22px; }
+  .pool .lbl { font-size: 11.5px; font-weight: 600; color: #dcdcea; }
+  .pool.hot {
+    color: #fff;
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.6);
+    box-shadow: 0 12px 24px -8px rgba(0,0,0,0.6), 0 0 0 4px rgba(255,255,255,0.07);
+  }
+
+  /* 1：半圆扇形，球静止，只向外弹出 */
+  .fan { position: absolute; width: 0; height: 0; }
+  .fan .pool { position: absolute; width: 48px; height: 48px; border-radius: 16px; transform: translate(-50%, -50%); }
+  .fan .pool.hot { width: 58px; height: 58px; border-radius: 19px; }
+
+  /* 2：横向胶囊条 */
+  .strip {
+    position: absolute; display: flex; align-items: center; gap: 9px;
+    padding: 10px 12px; border-radius: 999px;
+    background: rgba(30,30,37,0.76);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 20px 36px -16px rgba(0,0,0,0.85);
+  }
+  .strip .pool { width: 42px; height: 42px; border-radius: 999px; }
+  .strip .pool.hot { width: 50px; height: 50px; }
+  .strip .pool.hot svg { width: 25px; height: 25px; }
+
+  /* 3：宫格 */
+  .pad {
+    position: absolute; padding: 11px; border-radius: 22px;
+    display: grid; grid-template-columns: repeat(3, 90px); gap: 9px;
+    background: rgba(30,30,37,0.8);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 24px 44px -18px rgba(0,0,0,0.9);
+  }
+  .pad .pool { width: 90px; height: 64px; border-radius: 15px; gap: 3px; padding: 7px 5px; }
+  .pad .pool.hot { transform: scale(1.05); }
+  .pad .pool svg { width: 21px; height: 21px; }
+
+  /* 4：罗盘环 */
+  .ring { position: absolute; width: 0; height: 0; }
+  .ring .orbit {
+    position: absolute; width: 216px; height: 216px; margin: -108px 0 0 -108px;
+    border-radius: 999px; border: 1px dashed rgba(255,255,255,0.14);
+  }
+  .ring .pool { position: absolute; width: 44px; height: 44px; border-radius: 999px; transform: translate(-50%, -50%); }
+  .ring .pool.hot { width: 56px; height: 56px; }
+  .bubble {
+    position: absolute; padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; color: #24242c; background: #f4f4f9;
+    box-shadow: 0 10px 18px -6px rgba(0,0,0,0.65);
+    transform: translate(-50%, -50%); white-space: nowrap;
+  }
+
+  /* 5：竖向抽屉 */
+  .drawer {
+    position: absolute; padding: 9px; border-radius: 20px;
+    display: flex; flex-direction: column; gap: 6px; width: 214px;
+    background: rgba(30,30,37,0.82);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 26px 44px -18px rgba(0,0,0,0.9);
+  }
+  .drawer .pool {
+    grid-auto-flow: column; justify-content: start; gap: 9px; padding: 0 11px;
+    width: 100%; height: 40px; border-radius: 12px;
+  }
+  .drawer .pool .n { margin-left: auto; font-size: 11px; font-weight: 700; color: #8a8a9e; }
+  .drawer .pool.hot .n { color: #fff; }
+
+  .foot { margin-top: 14px; font-size: 11.5px; color: #86869a; }
+</style>
+</head>
+<body>
+<h1>LDFC「池子投放面板」UI 候选（5 版）</h1>
+<p class="lead">
+  用法：按住多选后的悬浮球拖动 → 球变形成投放面板 → 拖到某个池子上松手即移入。每版都把「⭐ 感兴趣」画成了当前悬停高亮状态。
+  池子图标统一<b style="color:#dcdcea">无着色线性图标</b>；球右上角「3」是多选计数。
+</p>
+
+<div class="grid">
+
+  <!-- 1 扇形 -->
+  <section class="card">
+    <h2><span class="no">1</span>半圆扇形<span class="tag">最像现在的球</span></h2>
+    <div class="stage">
+      <div class="fake-row a"></div><div class="fake-row b"></div><div class="fake-row c"></div><div class="fake-row d"></div>
+      <div class="fan" style="left:50%; top:62%">
+        <div class="pool" style="left:-100px; top:0">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+        </div>
+        <div class="pool" style="left:-70.7px; top:-70.7px">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M5 12.8l4.3 4.3L19 7.3"/></svg>
+        </div>
+        <div class="pool hot" style="left:0; top:-100px">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.1 5.6.8-4.1 4 1 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8Z"/></svg>
+        </div>
+        <div class="pool" style="left:70.7px; top:-70.7px">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M4.6 6.3h14.8v9.1H11l-4.4 3.3v-3.3H4.6z"/></svg>
+        </div>
+        <div class="pool" style="left:100px; top:0">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>
+        </div>
+      </div>
+      <div class="ball dragging" style="width:56px;height:56px;left:calc(50% - 28px);top:calc(62% - 28px);border-radius:17px">
+        <svg class="ic" viewBox="0 0 24 24" style="width:26px;height:26px"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+        <span class="count">3</span>
+      </div>
+      <div class="hint" style="left:18px;bottom:12px">球不动，只向上升出五个落点（贴底时就地展开）</div>
+    </div>
+    <ul class="notes">
+      <li class="good"><b>好：</b>仍是「那个球」，镜头不跳；拖动行程最短，松手前手指几乎不用移动。</li>
+      <li class="bad"><b>难：</b>五格只有图标，头几次要认；贴屏幕上方时半圆要整圈翻成朝下。</li>
+    </ul>
+  </section>
+
+  <!-- 2 胶囊条 -->
+  <section class="card">
+    <h2><span class="no">2</span>横向胶囊条<span class="tag">最好读</span></h2>
+    <div class="stage">
+      <div class="fake-row a"></div><div class="fake-row b"></div><div class="fake-row c"></div><div class="fake-row d"></div>
+      <div class="ball dragging" style="width:56px;height:56px;left:40px;top:96px;border-radius:17px">
+        <svg class="ic" viewBox="0 0 24 24" style="width:26px;height:26px"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+        <span class="count">3</span>
+      </div>
+      <div class="strip" style="left:124px; top:98px">
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+        </div>
+        <div class="pool hot">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.1 5.6.8-4.1 4 1 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8Z"/></svg>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M4.6 6.3h14.8v9.1H11l-4.4 3.3v-3.3H4.6z"/></svg>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M5 12.8l4.3 4.3L19 7.3"/></svg>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>
+        </div>
+      </div>
+      <div class="hint" style="left:18px;bottom:12px">球贴左边 → 条向右长；球贴右边 → 条向左长，永不出屏</div>
+    </div>
+    <ul class="notes">
+      <li class="good"><b>好：</b>一行五格，视线不来回跳；命中率高，键鼠和触屏都稳。</li>
+      <li class="bad"><b>难：</b>仍是纯图标；条长约 280px，窄屏（&lt;360px）要缩格或折两行。</li>
+    </ul>
+  </section>
+
+  <!-- 3 宫格 -->
+  <section class="card">
+    <h2><span class="no">3</span>圆角宫格<span class="tag">最清楚</span></h2>
+    <div class="stage tall">
+      <div class="fake-row a"></div><div class="fake-row b"></div><div class="fake-row c"></div><div class="fake-row d"></div>
+      <div class="ball" style="width:42px;height:42px;left:30px;top:214px;border-radius:13px;opacity:.5">
+        <svg class="ic" viewBox="0 0 24 24" style="width:19px;height:19px"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+      </div>
+      <div class="hint" style="left:82px;top:226px">按下前的位置</div>
+      <div class="pad" style="left:56%;top:86px;transform:translateX(-50%)">
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+          <span class="lbl">主信息流</span>
+        </div>
+        <div class="pool hot">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.1 5.6.8-4.1 4 1 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8Z"/></svg>
+          <span class="lbl">感兴趣</span>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M4.6 6.3h14.8v9.1H11l-4.4 3.3v-3.3H4.6z"/></svg>
+          <span class="lbl">新回复</span>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M5 12.8l4.3 4.3L19 7.3"/></svg>
+          <span class="lbl">已读</span>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>
+          <span class="lbl">不感兴趣</span>
+        </div>
+        <div class="pool" style="opacity:.4;border-style:dashed">
+          <span class="lbl" style="font-size:10.5px;line-height:1.35;text-align:center;color:#9a9aae">拖到这里<br>取消</span>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li class="good"><b>好：</b>带中文名，零学习成本；多一格「取消」，误拖有退路。</li>
+      <li class="bad"><b>难：</b>遮罩面积最大（约 300×160），拖拽时挡视线；手机上更明显。</li>
+    </ul>
+  </section>
+
+  <!-- 4 罗盘环 -->
+  <section class="card">
+    <h2><span class="no">4</span>罗盘环<span class="tag">最轻</span></h2>
+    <div class="stage tall">
+      <div class="fake-row a"></div><div class="fake-row b"></div><div class="fake-row c"></div><div class="fake-row d"></div>
+      <div class="ring" style="left:50%; top:52%">
+        <div class="orbit"></div>
+        <div class="pool" style="left:0; top:-108px">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+        </div>
+        <div class="pool hot" style="left:102.7px; top:-33.4px">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.1 5.6.8-4.1 4 1 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8Z"/></svg>
+        </div>
+        <div class="pool" style="left:63.5px; top:87.4px">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M4.6 6.3h14.8v9.1H11l-4.4 3.3v-3.3H4.6z"/></svg>
+        </div>
+        <div class="pool" style="left:-63.5px; top:87.4px">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M5 12.8l4.3 4.3L19 7.3"/></svg>
+        </div>
+        <div class="pool" style="left:-102.7px; top:-33.4px">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>
+        </div>
+        <div class="bubble" style="left:102.7px; top:-62px">感兴趣</div>
+      </div>
+      <div class="ball dragging" style="width:56px;height:56px;left:calc(50% - 28px);top:calc(52% - 28px);border-radius:17px">
+        <svg class="ic" viewBox="0 0 24 24" style="width:26px;height:26px"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+        <span class="count">3</span>
+      </div>
+      <div class="hint" style="left:18px;bottom:12px">平时只有五个点，悬停哪格才在哪里浮出名字</div>
+    </div>
+    <ul class="notes">
+      <li class="good"><b>好：</b>占屏最小、最「苹果」；环形有节奏感，和球的圆呼应。</li>
+      <li class="bad"><b>难：</b>44px 目标在触屏上偏小，手抖容易滑进隔壁；上下两个点会被行内容压住。</li>
+    </ul>
+  </section>
+
+  <!-- 5 竖向抽屉 -->
+  <section class="card wide">
+    <h2><span class="no">5</span>竖向抽屉（球就地长成一张列卡）<span class="tag">最稳</span></h2>
+    <div class="stage short">
+      <div class="fake-row a" style="left:300px;width:40%"></div><div class="fake-row b" style="left:300px;top:56px;width:30%"></div><div class="fake-row c" style="left:300px;top:90px;width:52%"></div>
+      <div class="drawer" style="left:34px; top:16px">
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.1 20.1 7.4 12 11.7 3.9 7.4 12 3.1Z"/><path d="m4.5 11.9 7.5 3.9 7.5-3.9"/></svg>
+          <span class="lbl">主信息流</span><span class="n">128</span>
+        </div>
+        <div class="pool hot">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.1 5.6.8-4.1 4 1 5.6-5-2.7-5 2.7 1-5.6-4.1-4 5.6-.8Z"/></svg>
+          <span class="lbl">感兴趣</span><span class="n">+3</span>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M4.6 6.3h14.8v9.1H11l-4.4 3.3v-3.3H4.6z"/></svg>
+          <span class="lbl">新回复</span><span class="n">6</span>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M5 12.8l4.3 4.3L19 7.3"/></svg>
+          <span class="lbl">已读</span><span class="n">31</span>
+        </div>
+        <div class="pool">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>
+          <span class="lbl">不感兴趣</span><span class="n">9</span>
+        </div>
+      </div>
+      <div style="position:absolute;left:290px;top:16px;right:26px;height:226px;border-radius:14px;border:1px dashed rgba(255,255,255,0.14);display:grid;place-items:center;color:#7c7c92;font-size:11.5px;line-height:1.8;text-align:center;padding:14px">
+        拖拽全程不变形、不跳位：把球原地换成一条等高列，<br>
+        手指在哪一行松开就投进哪个池；右侧带现有条数
+      </div>
+    </div>
+    <ul class="notes">
+      <li class="good"><b>好：</b>命中率最高（整行 40px 可放）；有名称、有效量；动画最省事——只需高度展开，不用算方位。</li>
+      <li class="bad"><b>难：</b>占纵向空间最多（约 250px），贴底时要整列翻上去；手感不如 1/4 那种「弹出」。</li>
+    </ul>
+  </section>
+
+</div>
+
+<p class="foot">本图只是形态候选：格子尺寸、间距、展开时长、跟随阻尼全部未定，选定版式后再标为实现候选并进真机调。</p>
+</body>
+</html>
