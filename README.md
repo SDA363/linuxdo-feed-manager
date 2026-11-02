@@ -40,7 +40,13 @@
 
 ### 油猴 / 篡改猴
 
-把 `dist/ldfc.user.js` 导入脚本管理器即可（`@grant none`，纯页面脚本）。
+本仓库不提交构建产物（`dist/` 已忽略）。先本地生成：
+
+```bash
+node tools/build-userscript.js   # 输出 dist/ldfc.user.js
+```
+
+再把 `dist/ldfc.user.js` 导入脚本管理器即可（`@grant none`，纯页面脚本）。
 
 > **不要同时开两个**：扩展和油猴脚本会各注入一份 UI。同一台浏览器只用一种。
 > 油猴环境下没有扩展后台，**云同步不可用**，本地功能与导出/导入照常。
