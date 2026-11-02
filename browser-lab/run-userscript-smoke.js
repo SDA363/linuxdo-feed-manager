@@ -323,6 +323,65 @@ function parseArgs(argv) {
   );
   await page.evaluate(() => window.LDFCPreview?.close?.());
 
+  // ---- 设置面板：油猴环境下必须明确降级，而不是假装能用 ----
+  await page.evaluate(() => document.querySelector("#ldfc-settings-launch")?.click());
+  await page.waitForTimeout(800);
+  // 该账号库首次打开设置时是「首次安装」向导，先选 A 完成初始化，
+  // 否则看到的是向导而不是设置项（扩展端验收里已单独覆盖向导）。
+  await page.evaluate(() => document.querySelector("#ldfc-settings .ldfc-onboarding-card")?.click());
+  await page.waitForTimeout(900);
+  const settings = await page.evaluate(() => {
+    const panel = document.querySelector("#ldfc-settings");
+    const sync = panel?.querySelector("#ldfc-sync-settings");
+    return {
+      open: Boolean(panel) && getComputedStyle(panel).display !== "none",
+      close: Boolean(panel?.querySelector("#ldfc-settings-close")),
+      syncHost: Boolean(sync),
+      syncText: (sync?.textContent ?? "").replace(/\s+/g, " ").trim(),
+      autoRead: Boolean(panel?.querySelector("#ldfc-notify-auto-read")),
+      previewToggle: Boolean(panel?.querySelector("#ldfc-preview-toggle")),
+      ids: panel ? [...panel.querySelectorAll("[id]")].map((element) => element.id).slice(0, 20) : []
+    };
+  });
+  record(
+    settings.open && settings.close,
+    `油猴版设置面板可打开（关闭按钮=${settings.close}）`
+  );
+  record(
+    settings.syncHost && /没有扩展后台|无法跨域/.test(settings.syncText),
+    `油猴版云同步明确降级（「${settings.syncText.slice(0, 28)}…」）`
+  );
+  record(
+    settings.autoRead && settings.previewToggle,
+    `油猴版设置含预览开关与「自动已读时」档位（${settings.previewToggle} / ${settings.autoRead}；实际 id：${settings.ids.join(",")}）`
+  );
+  await page.evaluate(() => document.querySelector("#ldfc-settings-close")?.click());
+  await page.waitForTimeout(500);
+
+  // ---- 信息池面板：四个池子都要能渲染出来 ----
+  await page.evaluate(() => {
+    const button = document.querySelector('#ldfc-navigation button[data-pool="INTERESTED"]');
+    button?.click();
+  });
+  await page.waitForTimeout(700);
+  const poolPanel = await page.evaluate(() => {
+    const panel = document.querySelector("#ldfc-panel");
+    return {
+      open: Boolean(panel) && getComputedStyle(panel).display !== "none",
+      close: Boolean(panel?.querySelector("#ldfc-panel-close")),
+      rows: panel?.querySelectorAll(".ldfc-panel-item").length ?? 0,
+      title: (panel?.querySelector(".ldfc-panel-title")?.textContent ?? "").trim()
+    };
+  });
+  record(
+    poolPanel.open && poolPanel.close,
+    `油猴版信息池面板可打开（关闭按钮=${poolPanel.close}，标题「${poolPanel.title}」）`
+  );
+  record(
+    poolPanel.rows >= 1,
+    `油猴版池内能看到已标记记录（${poolPanel.rows} 行）`
+  );
+
   console.log("\n===== 油猴脚本冒烟验收 =====");
   for (const line of results) console.log(line);
   const failed = results.filter((line) => line.startsWith("FAIL")).length;

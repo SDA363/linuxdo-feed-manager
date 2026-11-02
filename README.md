@@ -109,7 +109,7 @@ node tools/test-sync-settings.js       # 设置纯函数（13 项）
 node browser-lab/run-ui-acceptance.js      # 121 项
 node browser-lab/run-sync-acceptance.js    # 42 项（需先 node browser-lab/mock-webdav.js）
 node browser-lab/run-ldfc-acceptance.js    # 77 项
-node browser-lab/run-userscript-smoke.js   # 9 项
+node browser-lab/run-userscript-smoke.js   # 14 项
 ```
 
 ## 未验证清单（如实标注）
