@@ -2,9 +2,14 @@
 
 // 油猴脚本模式的冒烟验收（V1.1 阶段 1 的最小切片）。
 //
-// 和 run-ldfc-acceptance.js 的区别：油猴脚本用 @grant none 跑在页面主世界，
-// 没有隔离世界，所以这里所有断言都直接用 page.evaluate，不需要 CDP 的
+// 和 run-ldfc-acceptance.js 的区别：油猴脚本跑在页面主世界（没有隔离世界），
+// 所以这里所有断言都直接用 page.evaluate，不需要 CDP 的
 // Extensions.loadUnpacked / ext-world eval。
+//
+// 云同步有两条后端：扩展后台 / GM_xmlhttpRequest。前者的验收在
+// run-sync-acceptance.js；这里补后者 —— 用页面主世界的桩函数模拟
+// @grant GM_xmlhttpRequest，只验证"判据 + UI 分支 + 请求真的发出去"。
+// 真实 Tampermonkey 沙箱与真实坚果云不在此环境内（报告里必须标 NOT TESTED）。
 //
 // 前提：
 //   node probe-server.js
@@ -381,6 +386,87 @@ function parseArgs(argv) {
     poolPanel.rows >= 1,
     `油猴版池内能看到已标记记录（${poolPanel.rows} 行）`
   );
+
+  // ---- GM 后端：有 GM_xmlhttpRequest 时必须渲染可用表单，而不是降级说明 ----
+  const gmContext = await browser.newContext();
+  try {
+    await gmContext.addInitScript(() => {
+      window.__gmCalls = [];
+      window.GM_xmlhttpRequest = (options) => {
+        window.__gmCalls.push({
+          method: options.method,
+          url: options.url,
+          hasAuth: Boolean(options.headers?.Authorization),
+          dataLength: options.data?.byteLength ?? null
+        });
+        setTimeout(() => {
+          options.onload({ status: 404, responseHeaders: "", response: new ArrayBuffer(0) });
+        }, 5);
+      };
+    });
+    await gmContext.addInitScript({ path: USERSCRIPT });
+
+    const gmPage = await gmContext.newPage();
+    await gmPage.goto(url, { waitUntil: "domcontentloaded" });
+    await gmPage.waitForSelector("#ldfc-navigation", { timeout: 15000 });
+    await gmPage.waitForTimeout(900);
+    await gmPage.evaluate(() => document.querySelector("#ldfc-settings-launch")?.click());
+    await gmPage.waitForTimeout(800);
+    await gmPage.evaluate(() =>
+      document.querySelector("#ldfc-settings .ldfc-onboarding-card")?.click()
+    );
+    await gmPage.waitForTimeout(900);
+
+    const gmForm = await gmPage.evaluate(() => {
+      const panel = document.querySelector("#ldfc-settings");
+      const fill = (id, value) => {
+        const input = panel?.querySelector(`#${id}`);
+        if (!input) return;
+        input.value = value;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      fill("ldfc-sync-url", "https://dav.example.com/dav/");
+      fill("ldfc-sync-username", "alice@example.com");
+      fill("ldfc-sync-password", "app-password");
+      return {
+        backend: window.LDFCWebDAV?.backend?.() ?? "none",
+        hasForm: Boolean(panel?.querySelector("#ldfc-sync-url")),
+        hasAuthorize: Boolean(panel?.querySelector("#ldfc-sync-authorize")),
+        degraded: /没有扩展后台/.test(
+          panel?.querySelector("#ldfc-sync-settings")?.textContent ?? ""
+        )
+      };
+    });
+    record(
+      gmForm.backend === "gm" && gmForm.hasForm && !gmForm.degraded,
+      `油猴 + GM_xmlhttpRequest：渲染可用表单而不是降级说明（backend=${gmForm.backend}）`
+    );
+
+    // 「测试连接」内部会走 saveConfig → checkPermission → transport.test，
+    // 顺便把权限行刷新出来，所以先点按钮再读状态。
+    await gmPage.evaluate(() => document.querySelector("#ldfc-sync-test")?.click());
+    await gmPage.waitForTimeout(1200);
+    const gmPermission = await gmPage.evaluate(() =>
+      (document.querySelector("#ldfc-sync-permission")?.textContent ?? "").trim()
+    );
+    record(
+      !gmForm.hasAuthorize && /无需授权/.test(gmPermission),
+      `油猴 + GM：隐藏「授权访问此域名」，权限行「${gmPermission}」`
+    );
+
+    const gmCalls = await gmPage.evaluate(() => window.__gmCalls ?? []);
+    record(
+      gmCalls.length >= 1 &&
+        gmCalls[0].method === "GET" &&
+        /dav\.example\.com/.test(gmCalls[0].url) &&
+        gmCalls[0].hasAuth,
+      `油猴 + GM：点「测试连接」真的走 GM_xmlhttpRequest（${gmCalls
+        .map((call) => `${call.method} ${call.url}`)
+        .join(" | ")}）`
+    );
+  } finally {
+    await gmContext.close();
+  }
 
   console.log("\n===== 油猴脚本冒烟验收 =====");
   for (const line of results) console.log(line);

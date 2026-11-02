@@ -358,8 +358,8 @@ WebDAV 同步端到端验收：          37 / 37 通过（真实 HTTP + mock 服
 | `ui/syncSettings.js` | 设置面板：地址/账号/密码、测试连接、立即同步、授权、清除凭据、状态展示 |
 | `permissions.html/js` | 独立扩展页，在真实用户点击下申请域名权限 |
 
-**测试**：模型 64 + 编排 52 + 传输 17 + 设置纯函数 13 + 端到端 42 = **188 项全绿**；
-另有通知联动 13 与浏览器端四套（同步 42 / UI 121 / 主流程 77 / 油猴冒烟 14 = 254 项）。
+**测试**：模型 64 + 编排 52 + 传输 35（含油猴 GM 后端）+ 设置纯函数 13 + 端到端 42 = **206 项全绿**；
+另有通知联动 13 与浏览器端四套（同步 42 / UI 121 / 主流程 77 / 油猴冒烟 17 = 257 项）。
 
 **远程文档格式（schema 5）**
 
@@ -387,9 +387,16 @@ WebDAV 同步端到端验收：          37 / 37 通过（真实 HTTP + mock 服
   不参与池子 LWW、不改 `updatedAt`，因此不会把记录顶到池子最前；
   `level = null` + 有 `at` 表示用户显式「跟随信息池」，这个清除同样会同步。
 
-**未做**：S3 Google Drive（OAuth + AppData 读写）；油猴环境下的云同步
-（无扩展后台，设置面板只显示说明）。真实坚果云已由用户手工联调通过，
+**未做**：S3 Google Drive（OAuth + AppData 读写）。真实坚果云已由用户手工联调通过，
 但没有自动化。
+
+**油猴版云同步（已补）**：`dist/ldfc.user.js` 从 `@grant none` 改为
+`@grant GM_xmlhttpRequest` + `@connect *`。传输层新增 GM 分支：
+`read/test` → GET，`write` → PUT，二进制 body 直接交 `Uint8Array`（不走
+base64 中转），401/403→`auth`、409/412→`conflict`、404→空文件，
+与 `background/service-worker.js` 逐条对齐。设置面板按
+`window.LDFCWebDAV.backend()` 的三态（`extension` / `gm` / `none`）渲染，
+油猴下隐藏「授权访问此域名」。扩展端代码路径与行为未变。
 
 **验证边界（不要误读为已验）**：
 
@@ -402,6 +409,11 @@ WebDAV 同步端到端验收：          37 / 37 通过（真实 HTTP + mock 服
   "You cannot remove required permissions."
 - 真实坚果云链路（配置 → 授权 → 测试 → 拉取 → 推送 → 另一 profile 拉取）
   由用户手工验证，**未固化成自动化**。
+- **油猴版的真实请求没有验证。** `test-webdav-transport.js` 用
+  `GM_xmlhttpRequest` 桩验证协议与错误映射；`run-userscript-smoke.js`
+  在页面主世界注入桩，只验证「判据 / 表单渲染 / 请求确实发出」。
+  真实 Tampermonkey（尤其 Android Firefox）沙箱中的一次真实坚果云读写
+  **NOT TESTED**。
 
 ## 七、阅读器 UI：折叠导航与阅读页操作按钮
 

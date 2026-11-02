@@ -39,9 +39,10 @@
     });
   }
 
-  // 油猴脚本里没有扩展后台，跨域请求发不出去；这时不展示一套用不了的表单。
-  function hasBackground() {
-    return typeof chrome !== "undefined" && Boolean(chrome.runtime?.id);
+  // 传输层自己知道当前能走哪条路：扩展后台 / GM_xmlhttpRequest / 都没有。
+  // 设置面板只按它给的结果决定渲染什么，不重复一套判据（否则两边必然漂移）。
+  function backendKind() {
+    return window.LDFCWebDAV?.backend?.() ?? "none";
   }
 
   function sanitizeNamespace(value) {
@@ -90,6 +91,8 @@
 
   async function checkPermission(fileUrl) {
     if (!fileUrl) return false;
+    // 油猴的 GM_xmlhttpRequest 本身就是跨域接口，没有域名授权这一步。
+    if (backendKind() === "gm") return true;
     const pattern = originPatternFor(fileUrl);
     if (!ORIGIN_PATTERN.test(pattern)) return false;
     const response = await send({ type: "ldfc:check-permission", origins: [pattern] });
@@ -175,7 +178,9 @@
     if (!container) return;
     container.innerHTML = "";
 
-    if (!hasBackground()) {
+    const kind = backendKind();
+
+    if (kind === "none") {
       const unavailable = document.createElement("section");
       unavailable.className = "ldfc-sync-section";
       const unavailableTitle = document.createElement("h3");
@@ -183,7 +188,7 @@
       const unavailableNote = document.createElement("p");
       unavailableNote.className = "ldfc-sync-note";
       unavailableNote.textContent =
-        "当前环境（油猴脚本）没有扩展后台，无法跨域访问 WebDAV，云同步仅在浏览器扩展版可用。本地数据与手动 JSON 导出/导入不受影响。";
+        "当前环境既没有扩展后台，也没有 GM_xmlhttpRequest（油猴跨域接口），无法跨域访问 WebDAV。请使用浏览器扩展版，或在 Tampermonkey / Violentmonkey 中安装本脚本（脚本已声明 @grant GM_xmlhttpRequest）。本地数据与手动 JSON 导出/导入不受影响。";
       unavailable.append(unavailableTitle, unavailableNote);
       container.appendChild(unavailable);
       mounted = unavailable;
@@ -239,8 +244,10 @@
         "在坚果云网页版或客户端里找「账户设置 → 安全选项 → 应用密码 / 第三方应用」，添加一个应用后复制生成的密码。它通常只显示一次，关掉就看不到了。"
       ],
       [
-        "6. 授权 → 测试 → 保存",
-        "填完点「授权访问此域名」→「测试连接」→「保存配置」。另一台设备填同一份配置，打开站点就会自动拉取并合并。"
+        kind === "gm" ? "6. 测试 → 保存" : "6. 授权 → 测试 → 保存",
+        kind === "gm"
+          ? "填完点「测试连接」→「保存配置」。另一台设备填同一份配置，打开站点就会自动拉取并合并。"
+          : "填完点「授权访问此域名」→「测试连接」→「保存配置」。另一台设备填同一份配置，打开站点就会自动拉取并合并。"
       ]
     ];
 
@@ -436,7 +443,9 @@
 
       try {
         const granted = await checkPermission(fileUrl);
-        permission.textContent = granted ? "域名权限：已授权" : "域名权限：未授权";
+        if (!granted) permission.textContent = "域名权限：未授权";
+        else if (kind === "gm") permission.textContent = "域名权限：油猴模式无需授权";
+        else permission.textContent = "域名权限：已授权";
       } catch {
         permission.textContent = "域名权限：无法检查";
       }
@@ -498,18 +507,23 @@
         }
         await refresh();
       }),
-      actionButton("ldfc-sync-authorize", "授权访问此域名", async () => {
-        try {
-          await saveConfig({ silent: true });
-          const fileUrl = resolveFileUrl(urlField.input.value, namespace());
-          if (!fileUrl) throw new Error("请先填写 WebDAV 地址");
-          await openPermissionPage(fileUrl);
-          toast("已打开授权页，请在新标签页点「允许访问」");
-        } catch (error) {
-          toast(error.message);
-        }
-        await refresh();
-      }),
+      // 油猴走 GM_xmlhttpRequest，没有"域名授权"这一步，按钮留着只会误导。
+      ...(kind === "gm"
+        ? []
+        : [
+            actionButton("ldfc-sync-authorize", "授权访问此域名", async () => {
+              try {
+                await saveConfig({ silent: true });
+                const fileUrl = resolveFileUrl(urlField.input.value, namespace());
+                if (!fileUrl) throw new Error("请先填写 WebDAV 地址");
+                await openPermissionPage(fileUrl);
+                toast("已打开授权页，请在新标签页点「允许访问」");
+              } catch (error) {
+                toast(error.message);
+              }
+              await refresh();
+            })
+          ]),
       actionButton("ldfc-sync-clear", "清除本地凭据", async () => {
         const confirmed = window.confirm(
           "确定清除本地保存的 WebDAV 地址与凭据？\n\n远端同步文件不会被删除。"

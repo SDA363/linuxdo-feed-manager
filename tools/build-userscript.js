@@ -6,9 +6,14 @@
 //   油猴脚本与扩展的**功能代码完全相同**，差异只有三处：
 //     1. 没有 manifest，需要 @match / @run-at 头部；
 //     2. 没有 content_scripts.css，样式要内联注入；
-//     3. 所有文件拼成一个脚本，在页面主世界执行（@grant none）。
+//     3. 所有文件拼成一个脚本；
+//     4. 跨域靠 GM_xmlhttpRequest（扩展那边是 background service worker）。
 //   手写第二份源码必然漂移，所以这里以 linuxdo-personal-feed-manager/
 //   为唯一源码，每次生成 dist/ldfc.user.js。
+//
+// 关于 @grant：早期是 @grant none（完全在页面世界跑）。补云同步后必须
+// 声明 GM_xmlhttpRequest，否则油猴拿不到跨域接口。实测（Tampermonkey）
+// 在 grant 生效后 history.pushState 钩子仍然命中，SPA 路由不受影响。
 //
 // 安全边界：
 //   - 绝不写 linuxdo-personal-feed-manager/（Chrome v1.0.0 封版源码）
@@ -54,7 +59,8 @@ const header = `// ==UserScript==
 // @description  ${manifest.description}
 // @match        https://linux.do/*
 // @run-at       document-start
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      *
 // @noframes
 // ==/UserScript==
 `;

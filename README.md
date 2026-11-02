@@ -67,10 +67,15 @@
 node tools/build-userscript.js   # 输出 dist/ldfc.user.js
 ```
 
-再把 `dist/ldfc.user.js` 导入脚本管理器即可（`@grant none`，纯页面脚本）。
+再把 `dist/ldfc.user.js` 导入脚本管理器即可。脚本声明了
+`@grant GM_xmlhttpRequest` + `@connect *`：跨域读写 WebDAV 靠它，
+首次同步时脚本管理器会询问是否允许访问你填的网盘域名。
 
 > **不要同时开两个**：扩展和油猴脚本会各注入一份 UI。同一台浏览器只用一种。
-> 油猴环境下没有扩展后台，**云同步不可用**，本地功能与导出/导入照常。
+> 油猴版没有扩展后台，跨域改走 `GM_xmlhttpRequest`，**云同步可用**：
+> 同一套传输层契约（同样的 gzip 文件、ETag 条件写入、401/412 错误映射），
+> 两端写的是同一个 `ldfc-<账号>.json`。若脚本管理器没给这个权限，
+> 设置面板会明确提示，本地功能与导出/导入不受影响。
 
 ## 数据与隐私
 
@@ -92,7 +97,7 @@ node tools/build-userscript.js   # 输出 dist/ldfc.user.js
 | 环境 | 状态 |
 |---|---|
 | Chrome / Edge（MV3，桌面） | 已实现并验收 |
-| 油猴 / 篡改猴（`@grant none`） | 已实现并冒烟验收；云同步不可用 |
+| 油猴 / 篡改猴（`@grant GM_xmlhttpRequest`） | 已实现并冒烟验收；云同步走 GM 跨域（真实网盘 NOT TESTED） |
 | Firefox for Android | 已生成签名用打包产物（`dist/linuxdo-feed-manager-firefox-1.1.1.zip`）；**仅模拟器链路验证，真实手机 NOT TESTED** |
 | iOS / iPadOS | 未支持 |
 
@@ -102,14 +107,14 @@ node tools/build-userscript.js   # 输出 dist/ldfc.user.js
 node tools/test-sync-model.js          # 合并算法（64 项）
 node tools/test-notification-level.js  # 通知联动（13 项）
 node tools/test-sync-service.js        # 同步编排（52 项）
-node tools/test-webdav-transport.js    # 传输层（17 项）
+node tools/test-webdav-transport.js    # 传输层（35 项，含油猴 GM 后端）
 node tools/test-sync-settings.js       # 设置纯函数（13 项）
 
 # 浏览器端（需先启动 browser-lab/probe-server.js 与 browser-lab/browser.js）
 node browser-lab/run-ui-acceptance.js      # 121 项
 node browser-lab/run-sync-acceptance.js    # 42 项（需先 node browser-lab/mock-webdav.js）
 node browser-lab/run-ldfc-acceptance.js    # 77 项
-node browser-lab/run-userscript-smoke.js   # 14 项
+node browser-lab/run-userscript-smoke.js   # 17 项（含 GM 后端 UI 分支）
 ```
 
 ## 未验证清单（如实标注）
