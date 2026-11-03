@@ -49,14 +49,30 @@
     return String(value || "guest").replace(/[^A-Za-z0-9._-]/g, "_");
   }
 
+  // 用户手填的文件名：去掉路径分隔符与控制字符，并保证以 .json 结尾。
+  // 空串表示"还是按账号自动命名"。
+  function sanitizeFileName(value) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const cleaned = raw
+      .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_")
+      .replace(/^\.+/, "")
+      .trim();
+    if (!cleaned) return "";
+    return /\.json$/i.test(cleaned) ? cleaned : `${cleaned}.json`;
+  }
+
   // 用户填目录（坚果云推荐）→ 自动补按账号区分的文件名；
   // 已经填了完整 .json 地址 → 原样使用（高级用法）。
-  function resolveFileUrl(baseUrl, accountNamespace) {
+  // 第三个参数是「手填文件名」：脚本和扩展各自识别的账号命名空间可能不同
+  // （一个拿到 user-42，一个降级成 user-<用户名>），这时需要人工指定同一个文件。
+  function resolveFileUrl(baseUrl, accountNamespace, fileName) {
     const raw = String(baseUrl ?? "").trim();
     if (!raw) return "";
     if (/\.json(?:[?#].*)?$/i.test(raw)) return raw;
     const withSlash = raw.endsWith("/") ? raw : `${raw}/`;
-    return `${withSlash}ldfc-${sanitizeNamespace(accountNamespace)}.json`;
+    const name = sanitizeFileName(fileName) || `ldfc-${sanitizeNamespace(accountNamespace)}.json`;
+    return `${withSlash}${name}`;
   }
 
   // 用户很容易把坚果云的"网页 / 分享链接"当成 WebDAV 地址：
@@ -109,7 +125,7 @@
   function buildTransport(webdav, accountNamespace) {
     if (!webdav?.url) return null;
     return window.LDFCWebDAV.createTransport({
-      url: resolveFileUrl(webdav.url, accountNamespace),
+      url: resolveFileUrl(webdav.url, accountNamespace, webdav.fileName),
       username: webdav.username ?? "",
       password: webdav.password ?? ""
     });
@@ -326,6 +342,21 @@
     urlField.input.addEventListener("input", () => validateUrlField());
     urlField.input.addEventListener("blur", () => validateUrlField({ showEmpty: true }));
 
+    // 默认按 Linux.do 账号自动命名。两台设备识别出的命名空间不一致时
+    // （一边拿到 user-42、一边降级成 user-<用户名>），在这里填同一个文件名
+    // 就能指向同一个云端文件 —— 这正是脚本版和扩展版对不上的常见原因。
+    const nameField = field(
+      "ldfc-sync-filename",
+      "同步文件名（可选）",
+      "text",
+      "留空 = 自动：ldfc-<账号>.json",
+      ""
+    );
+
+    const nameHint = document.createElement("p");
+    nameHint.className = "ldfc-sync-note";
+    nameHint.id = "ldfc-sync-name-hint";
+
     const userField = field("ldfc-sync-username", "账号", "text", "坚果云登录邮箱", "");
     const passwordField = field("ldfc-sync-password", "应用密码", "password", "不是登录密码", "");
 
@@ -380,6 +411,7 @@
         backend: "webdav",
         webdav: {
           url: base,
+          fileName: sanitizeFileName(nameField.input.value),
           username,
           password
         }
@@ -389,22 +421,28 @@
 
       if (!silent) toast("云同步配置已保存");
       await refresh();
-      return resolveFileUrl(base, namespace());
+      return resolveFileUrl(base, namespace(), nameField.input.value);
     }
 
     function rememberDraft() {
       draft = {
         url: urlField.input.value,
+        fileName: nameField.input.value,
         username: userField.input.value,
         password: passwordField.input.value
       };
     }
 
     function updateFileLabel() {
-      const fileUrl = resolveFileUrl(urlField.input.value, namespace());
+      const fileUrl = resolveFileUrl(urlField.input.value, namespace(), nameField.input.value);
       fileLabel.textContent = fileUrl
         ? `同步文件：${fileUrl.split("/").pop() || fileUrl}`
         : "同步文件：等待填写地址";
+
+      const manual = Boolean(sanitizeFileName(nameField.input.value));
+      nameHint.textContent = manual
+        ? "手动指定：两台设备必须填同一个文件名，且登录同一个 Linux.do 账号，否则拉取会因账号不符被拒绝。"
+        : `留空时按本机识别到的账号自动命名（当前：${namespace()}）。脚本版和扩展版若自动文件名不同，就在这里填同一个名字。`;
     }
 
     function updateAccountHint() {
@@ -434,7 +472,7 @@
       }
       status.textContent = text;
 
-      const fileUrl = resolveFileUrl(urlField.input.value, namespace());
+      const fileUrl = resolveFileUrl(urlField.input.value, namespace(), nameField.input.value);
       updateFileLabel();
       if (!fileUrl) {
         permission.textContent = "域名权限：等待填写地址";
@@ -514,7 +552,11 @@
             actionButton("ldfc-sync-authorize", "授权访问此域名", async () => {
               try {
                 await saveConfig({ silent: true });
-                const fileUrl = resolveFileUrl(urlField.input.value, namespace());
+                const fileUrl = resolveFileUrl(
+                  urlField.input.value,
+                  namespace(),
+                  nameField.input.value
+                );
                 if (!fileUrl) throw new Error("请先填写 WebDAV 地址");
                 await openPermissionPage(fileUrl);
                 toast("已打开授权页，请在新标签页点「允许访问」");
@@ -536,6 +578,7 @@
           service().configureTransport(null);
           draft = null;
           urlField.input.value = "";
+          nameField.input.value = "";
           userField.input.value = "";
           passwordField.input.value = "";
           toast("已清除本地保存的 WebDAV 凭据");
@@ -562,6 +605,8 @@
       help,
       autoLabel,
       urlField.wrapper,
+      nameField.wrapper,
+      nameHint,
       fileLabel,
       userField.wrapper,
       accountHint,
@@ -585,13 +630,19 @@
     // 草稿优先：用户填了但没点按钮，关掉面板再打开时不至于"被清空"。
     const webdav = draft ?? config?.webdav ?? {};
     urlField.input.value = webdav.url ?? "";
+    nameField.input.value = webdav.fileName ?? "";
     userField.input.value = webdav.username ?? "";
     passwordField.input.value = webdav.password ?? "";
     autoInput.checked = config?.autoSync !== false;
     updateFileLabel();
     updateAccountHint();
 
-    for (const input of [urlField.input, userField.input, passwordField.input]) {
+    for (const input of [
+      urlField.input,
+      nameField.input,
+      userField.input,
+      passwordField.input
+    ]) {
       input.addEventListener("input", () => {
         rememberDraft();
         updateFileLabel();
@@ -615,6 +666,7 @@
     init,
     mount,
     originPatternFor,
-    resolveFileUrl
+    resolveFileUrl,
+    sanitizeFileName
   };
 })();

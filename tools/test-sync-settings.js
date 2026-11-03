@@ -16,7 +16,8 @@ const sandbox = { window: {}, console, URL };
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(FILE, "utf8"), sandbox, { filename: FILE });
 
-const { resolveFileUrl, originPatternFor, assertWebdavAddress } = sandbox.window.LDFCSyncSettings;
+const { resolveFileUrl, originPatternFor, assertWebdavAddress, sanitizeFileName } =
+  sandbox.window.LDFCSyncSettings;
 
 const results = [];
 const check = (ok, message) => {
@@ -55,6 +56,38 @@ check(
     "https://dav.example.com/dav/ldfc-user_a_b.json",
   "namespace 中的非法字符被替换"
 );
+
+check(
+  resolveFileUrl("https://dav.example.com/dav/", "user-42", "ldfc-shared") ===
+    "https://dav.example.com/dav/ldfc-shared.json",
+  "手填文件名：自动补 .json 后缀"
+);
+
+check(
+  resolveFileUrl("https://dav.example.com/dav/", "user-42", "ldfc-shared.json") ===
+    "https://dav.example.com/dav/ldfc-shared.json",
+  "手填文件名：已有 .json 不重复追加"
+);
+
+check(
+  resolveFileUrl("https://dav.example.com/dav/", "user-42", "   ") ===
+    "https://dav.example.com/dav/ldfc-user-42.json",
+  "手填空白：回落到按账号自动命名"
+);
+
+check(
+  resolveFileUrl("https://dav.example.com/dav/", "user-42", "../evil/name") ===
+    "https://dav.example.com/dav/_evil_name.json",
+  "手填文件名：路径分隔符被替换，跳不出同步目录"
+);
+
+check(
+  resolveFileUrl("https://dav.example.com/sync/exact.json", "user-42", "other.json") ===
+    "https://dav.example.com/sync/exact.json",
+  "完整 .json 地址优先，忽略手填文件名"
+);
+
+check(sanitizeFileName("  ") === "", "文件名纯空白：视为未填写");
 
 check(
   originPatternFor("https://dav.jianguoyun.com/dav/ldfc-user-42.json") ===
