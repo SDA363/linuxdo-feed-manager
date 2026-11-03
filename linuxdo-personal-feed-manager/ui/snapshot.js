@@ -215,6 +215,9 @@
     section.appendChild(tag);
 
     const body = api.cleanClone(node);
+    // canvas / video 是除 <img> 之外最常见的画布污染源（视频帧、图表），
+    // 论坛正文里几乎没有，直接摘掉比生成失败划算。
+    body.querySelectorAll("canvas, video").forEach((element) => element.remove());
     section.appendChild(body);
     return section;
   }
@@ -275,6 +278,11 @@
 
     try {
       document.body.appendChild(holder);
+      // 跨域图片会把 canvas 标记成 tainted，toDataURL / toBlob 直接抛错
+      // （"Tainted canvases may not be exported"）。
+      // 生成前把能取到的图内联成 data URL；取不到的摘掉 src ——
+      // 宁可少一张图，也不要整张快照失败。
+      await api.inlineImages?.(holder);
       await api.waitImages(holder);
       if (options.watermark) {
         const username = window.LDFCIdentity?.current?.()?.username || "";
@@ -302,6 +310,21 @@
 
   // ---------- 结果预览 ----------
 
+  function exportBlob(canvas, filename) {
+    const type = filename.endsWith(".jpg") ? "image/jpeg" : "image/png";
+    return new Promise((resolve) => canvas.toBlob(resolve, type, 0.92));
+  }
+
+  // 即使做了内联，仍可能被某个漏网资源污染；toDataURL 在此时会抛
+  // SecurityError，直接透出去用户只会看到英文栈信息。
+  function safeDataUrl(canvas) {
+    try {
+      return canvas.toDataURL("image/png");
+    } catch {
+      throw new Error("快照里有跨域资源无法导出，请刷新页面后重试");
+    }
+  }
+
   function showResult(canvas, filename) {
     const backdrop = document.createElement("div");
     backdrop.className = "ldfc-snap-backdrop";
@@ -312,7 +335,7 @@
     panel.setAttribute("aria-label", "快照预览");
 
     const img = document.createElement("img");
-    img.src = canvas.toDataURL("image/png");
+    img.src = safeDataUrl(canvas);
     img.alt = "快照预览";
 
     const actions = document.createElement("div");
@@ -321,10 +344,45 @@
     const download = document.createElement("button");
     download.type = "button";
     download.textContent = "下载图片";
-    download.addEventListener("click", () => {
-      canvas.toBlob((blob) => {
-        if (blob) window.LDFCPreviewExport?.download?.(blob, filename);
-      }, filename.endsWith(".jpg") ? "image/jpeg" : "image/png", 0.92);
+    // 走浏览器下载通道：装了 IDM / FDM / 迅雷之类能接管的下载器时，
+    // 由它们决定存到哪，不再受我们控制。
+    download.title = "交给浏览器下载（IDM / FDM / 迅雷等下载器可接管）";
+    download.addEventListener("click", async () => {
+      const blob = await exportBlob(canvas, filename);
+      if (blob) window.LDFCPreviewExport?.download?.(blob, filename);
+    });
+
+    // 想自己选目录就用系统保存对话框（File System Access API）。
+    // Firefox 没有这个 API，自动退回普通下载。
+    const saveAs = document.createElement("button");
+    saveAs.type = "button";
+    saveAs.textContent = "另存为…";
+    saveAs.title = "打开系统保存对话框，自己选路径";
+    saveAs.addEventListener("click", async () => {
+      const blob = await exportBlob(canvas, filename);
+      if (!blob) return;
+      const picker = window.showSaveFilePicker;
+      if (typeof picker === "function") {
+        try {
+          const handle = await picker.call(window, {
+            suggestedName: filename,
+            types: [
+              {
+                description: "图片",
+                accept: { [blob.type]: [filename.slice(filename.lastIndexOf("."))] }
+              }
+            ]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          toast("已保存");
+          return;
+        } catch (error) {
+          if (error?.name === "AbortError") return;
+        }
+      }
+      window.LDFCPreviewExport?.download?.(blob, filename);
     });
 
     const close = document.createElement("button");
@@ -345,7 +403,7 @@
     });
     document.addEventListener("keydown", onKey);
 
-    actions.append(download, close);
+    actions.append(download, saveAs, close);
     panel.append(img, actions);
     backdrop.appendChild(panel);
     document.body.appendChild(backdrop);

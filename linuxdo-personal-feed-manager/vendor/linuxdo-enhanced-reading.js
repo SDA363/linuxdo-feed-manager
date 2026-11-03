@@ -4171,6 +4171,30 @@
 
   function bindActions(modal, ctx) {
 
+    // 气泡输入框：回车 = 点发送。
+    // 中文输入法组字时的 Enter 是「上屏」，必须放过（isComposing / 229）。
+    modal.addEventListener('keydown', (e) => {
+
+      if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+
+      const input = e.target.closest && e.target.closest('.ldp-boost-input');
+
+      if (!input) return;
+
+      const wrap = input.closest('.ldp-boost-input-wrap');
+
+      const submit = wrap && wrap.querySelector('.ldp-boost-submit');
+
+      if (!submit || submit.disabled) return;
+
+      e.preventDefault();
+
+      e.stopPropagation();
+
+      submit.click();
+
+    });
+
     modal.addEventListener('click', async (e) => {
 
       const spoiler = e.target.closest('.ldp-spoiler');

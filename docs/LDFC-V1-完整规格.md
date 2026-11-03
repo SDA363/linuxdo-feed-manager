@@ -445,6 +445,10 @@ Topic A：basePool = INTERESTED，newReplyPending = true
     渲染成一张长图（html2canvas，`vendor/html2canvas.min.js`，MIT，本地分发）。
     预览窗里楼中楼会缩进一级列出（`↳`）；勾父楼时子楼随父楼一起进图，
     父子同时勾选也不会重复出现；也可以只勾某一层楼中楼单独截图。
+    生成后先出预览窗：`下载图片`走浏览器下载（IDM / FDM / 迅雷等可接管），
+    `另存为…`用 File System Access API 弹出系统保存对话框（Firefox 回退为普通下载）。
+    正文里的图片在生成前统一内联成 data URL，取不到的摘掉，
+    避免跨域图片把 canvas 标记为 tainted 导致 `toDataURL` 报错。
     面板选项：PNG / JPEG、二维码（`vendor/qrcode.min.js`，MIT，本地分发）、
     水印（默认开，内容为当前登录用户名）、主题（跟随站点 / 浅色 / 深色）。
     选项写 `LDFCDB.putMeta("snapshotSettings")`，下次沿用。

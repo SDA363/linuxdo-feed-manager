@@ -254,6 +254,7 @@
     // 供「生成快照」复用：同一套清理/等图/下载逻辑，避免两份实现漂移。
     cleanClone,
     waitImages,
+    inlineImages,
     download,
     safeName,
     fileStamp
