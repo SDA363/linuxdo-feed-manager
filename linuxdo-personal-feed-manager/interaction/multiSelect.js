@@ -496,12 +496,18 @@
     true
   );
 
-  // 点页面空白处也退出多选（点在胶囊 / 导航 / 面板里不算）。
+  // 点页面空白处也退出多选（点在胶囊 / 导航 / 面板 / 预览窗 / 帖子链接上不算）。
+  // 帖子标题要放行：多选进行中点标题是"预览一下这条"，不是"结束多选"——
+  // 以前这里一律 exit()，导致预览窗一开选中集合就没了（桌面端反馈）。
   document.addEventListener(
     "pointerdown",
     (event) => {
       if (!active) return;
-      if (event.target?.closest?.(".ldfc-actions, #ldfc-navigation, #ldfc-panel, #ldfc-settings")) {
+      if (
+        event.target?.closest?.(
+          ".ldfc-actions, #ldfc-navigation, #ldfc-panel, #ldfc-settings, .ldp-overlay, a[href*='/t/']"
+        )
+      ) {
         return;
       }
       exit();

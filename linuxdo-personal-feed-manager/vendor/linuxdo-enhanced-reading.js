@@ -136,6 +136,12 @@
       line-height:18px;text-align:center;white-space:nowrap;user-select:none;}
 
     .ldp-slider-thumb:active{cursor:grabbing;transform:translate(-50%,-50%) scale(1.1);}
+    /* LDFC change: 触摸端点住滑块必须独占手势。不加 touch-action:none 时浏览器
+       会先把这次拖动判成翻页并发出 pointercancel，滑块的 dragging 永远停在 true，
+       表现为「拖不动」而且数字不再跟随滚动。 */
+    .ldp-slider-thumb{touch-action:none;user-select:none;-webkit-user-select:none;}
+    /* 18px 的圆点在手机上很难点中：向外扩一圈透明热区，视觉不变。 */
+    .ldp-slider-thumb::after{content:"";position:absolute;inset:-8px 0;border-radius:14px;}
 
     .ldp-slider-tip{position:absolute;right:28px;background:var(--primary,#222);
 
@@ -5333,7 +5339,7 @@
 
 
 
-    const onPointerUp = () => {
+    const endDrag = (commit) => {
 
       if (!dragging) return;
 
@@ -5349,9 +5355,31 @@
 
       document.removeEventListener('pointerup', onPointerUp);
 
-      navigateToFloor(lastTargetFloor);
+      document.removeEventListener('pointercancel', onPointerCancel);
+
+      try { thumb.releasePointerCapture(thumb.__ldfcPointerId); } catch (e) { /* 忽略 */ }
+
+      if (commit) navigateToFloor(lastTargetFloor);
+
+      // 被打断时按当前真实位置重绘，别把数字停在拖动途中的半截值。
+
+      else paint(currentFloorAt());
 
     };
+
+
+
+    const onPointerUp = () => endDrag(true);
+
+
+
+    // LDFC change: 触摸被系统打断（来电、手势返回、浏览器抢走翻页）时必须收尾，
+
+    // 否则 dragging 卡在 true —— 滑块既不跟手，也再也不响应拖动。
+
+    const onPointerCancel = () => endDrag(false);
+
+    thumb.__ldfcPointerId = 0;
 
 
 
@@ -5369,9 +5397,15 @@
 
       tip.classList.add('show');
 
+      thumb.__ldfcPointerId = event.pointerId;
+
+      try { thumb.setPointerCapture(event.pointerId); } catch (e) { /* 不支持时仍靠 document 监听 */ }
+
       document.addEventListener('pointermove', onPointerMove);
 
       document.addEventListener('pointerup', onPointerUp);
+
+      document.addEventListener('pointercancel', onPointerCancel);
 
     });
 
@@ -5382,6 +5416,12 @@
       if (suppressClick) { suppressClick = false; return; }
 
       if (event.target === thumb) return;
+
+      // LDFC change: 触摸端只保留「拖滑块」。这条 22px 宽的竖条贴着滚动区右缘，
+
+      // 手指在边上滑一下就会补一次 click，直接重建整个预览窗并跳到陌生楼层（真机反馈）。
+
+      if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return;
 
       const rect = track.getBoundingClientRect();
 
@@ -5853,7 +5893,15 @@
 
             // 如果有未读评论，跳转到第一条未读
 
-            if (lastRead > 0 && lastRead < highest) {
+            // LDFC change: 只读了主楼（lastRead <= 1）等同于"没读过"。
+
+            // Discourse 在 track_visit=true 的这次请求里会把 last_read 记成 1，
+
+            // 于是第一次预览任何帖子都会算出 #2 并跳过去（真机反馈"自动跳陌生楼层"）。
+
+            // 只有确实读过后续回复时，才跳到「已读的下一楼」。
+
+            if (lastRead > 1 && lastRead < highest) {
 
               resolvedTarget = lastRead + 1;
 
