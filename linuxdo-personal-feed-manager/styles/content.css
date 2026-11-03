@@ -2038,3 +2038,320 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
     transition-duration: 1ms;
   }
 }
+
+/* ---------- 生成快照 ---------- */
+
+.ldfc-snap-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.ldfc-snap-backdrop.is-open {
+  opacity: 1;
+}
+
+.ldfc-snap-panel {
+  width: min(560px, 100%);
+  max-height: 86vh;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(18, 18, 22, 0.94);
+  color: #e6e6ee;
+  font-size: 13px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  transform: translateY(8px) scale(0.98);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ldfc-snap-backdrop.is-open .ldfc-snap-panel {
+  transform: none;
+}
+
+.ldfc-snap-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ldfc-snap-panel-head strong {
+  font-size: 15px;
+}
+
+.ldfc-snap-close {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e6e6ee;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ldfc-snap-subtitle {
+  margin: 6px 0 12px;
+  color: #a7a7b4;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.ldfc-snap-floors {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.ldfc-snap-floors-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #a7a7b4;
+}
+
+.ldfc-snap-floors-head span {
+  flex: 1;
+}
+
+.ldfc-snap-floors-head button {
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e6e6ee;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ldfc-snap-floor-list {
+  max-height: 190px;
+  overflow: auto;
+}
+
+.ldfc-snap-floor-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  font-size: 12px;
+  color: #cfcfdb;
+  cursor: pointer;
+}
+
+.ldfc-snap-floor-item span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ldfc-snap-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 12px 2px 0;
+}
+
+.ldfc-snap-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #cfcfdb;
+}
+
+.ldfc-snap-options select {
+  min-width: 96px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(18, 18, 22, 0.72);
+  color: #e6e6ee;
+  font-size: 12px;
+}
+
+.ldfc-snap-hint {
+  margin: 10px 2px 0;
+  color: #8d8d99;
+  font-size: 11px;
+}
+
+.ldfc-snap-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.ldfc-snap-generate {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #4f7cff;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ldfc-snap-generate[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ldfc-snap-result {
+  width: min(680px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(18, 18, 22, 0.96);
+  transform: translateY(8px) scale(0.98);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ldfc-snap-backdrop.is-open .ldfc-snap-result {
+  transform: none;
+}
+
+.ldfc-snap-result img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ldfc-snap-result-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ldfc-snap-result-actions button {
+  padding: 7px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e6e6ee;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ---------- 快照画布（离屏渲染区） ---------- */
+
+.ldfc-snap-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid rgba(127, 127, 127, 0.28);
+}
+
+.ldfc-snap-logo {
+  max-width: 100px;
+  max-height: 50px;
+  object-fit: contain;
+}
+
+.ldfc-snap-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.ldfc-snap-titles h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.ldfc-snap-time {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.ldfc-snap-qr {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 6px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ldfc-snap-post {
+  position: relative;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.22);
+}
+
+.ldfc-snap-floor {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.18);
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.ldfc-snap-post img {
+  max-width: 100%;
+  height: auto;
+}
+
+.ldfc-snap-post pre {
+  overflow: auto;
+}
+
+.ldfc-snap-post blockquote {
+  margin: 8px 0;
+  padding-left: 10px;
+  border-left: 3px solid rgba(127, 127, 127, 0.4);
+  opacity: 0.9;
+}
+
+.ldfc-snap-source {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(127, 127, 127, 0.22);
+  font-size: 11px;
+  opacity: 0.6;
+  text-align: right;
+  word-break: break-all;
+}
+
+.ldfc-snap-watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ldfc-snap-watermark span {
+  position: absolute;
+  transform: rotate(-45deg);
+  transform-origin: 0 0;
+  white-space: nowrap;
+  font-size: 24px;
+  color: var(--ldfc-wm-color, #000);
+  opacity: 0.18;
+}

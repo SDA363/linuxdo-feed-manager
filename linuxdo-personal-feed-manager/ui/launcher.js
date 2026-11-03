@@ -622,6 +622,36 @@
     };
   }
 
+  // 快照的楼层来源。
+  //   预览窗：只取顶层 .ldp-post —— 楼中楼挂在父节点的 .ldp-children 里，
+  //   直接 querySelectorAll('.ldp-post') 会把它们重复列一遍。
+  //   注意顶层帖子并不全在 .ldp-topic 下：1 楼在 .ldp-topic，其余在 .ldp-comments，
+  //   所以判据是「没有 .ldp-post 祖先」而不是父节点类名。
+  //   真实帖子页：每层一个 article#post_N。
+  function previewSnapshotPosts(overlay) {
+    const enginePosts = [...overlay.querySelectorAll(".ldp-modal .ldp-post")].filter(
+      (node) => !node.parentElement?.closest(".ldp-post")
+    );
+    const nodes = enginePosts.length
+      ? enginePosts
+      : [...overlay.querySelectorAll(".ldp-modal .ldfc-pv-post")].filter(
+          (node) => !node.parentElement?.closest(".ldfc-pv-post")
+        );
+    return nodes
+      .map((node, index) => ({
+        number: Number(node.dataset.postNumber) || index + 1,
+        node
+      }))
+      .sort((left, right) => left.number - right.number);
+  }
+
+  function topicSnapshotPosts() {
+    return [...document.querySelectorAll("article[id^='post_']")]
+      .map((node) => ({ number: Number(node.id.slice(5)) || 0, node }))
+      .filter((item) => item.number > 0)
+      .sort((left, right) => left.number - right.number);
+  }
+
   function runSave(kind, scope, button) {
     const api = window.LDFCPreviewExport;
     if (!api) {
@@ -1195,10 +1225,19 @@
     htmlButton.title = "把主贴保存为离线可读的 HTML";
     tools.appendChild(htmlButton);
 
-    const imageButton = nodeButton("🖼️ 保存为图片", (button) => runSave("image", scope, button));
-    imageButton.dataset.tool = "image";
-    imageButton.title = "把主贴保存为 PNG";
-    tools.appendChild(imageButton);
+    const snapshotButton = nodeButton("📸 生成快照", () => {
+      const api = window.LDFCSnapshot;
+      if (!api?.open) {
+        window.LDFCToast.show("快照功能未加载，请刷新页面再试");
+        return;
+      }
+      const posts =
+        kind === "preview" && overlay ? previewSnapshotPosts(overlay) : topicSnapshotPosts();
+      api.open({ title: scope.title(), url: scope.url(), posts });
+    });
+    snapshotButton.dataset.tool = "snapshot";
+    snapshotButton.title = "选择楼层，生成带水印和二维码的长图";
+    tools.appendChild(snapshotButton);
 
     return tools;
   }

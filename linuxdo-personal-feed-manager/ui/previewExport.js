@@ -23,7 +23,14 @@
     "ldfc-reader-actions",
     ".ldfc-topic-actions-row",
     // 第三方「小助手」的按钮容器（如果也装了）
-    ".save-buttons-container"
+    ".save-buttons-container",
+    // 真实帖子页：站点自带的楼层操作区 / 点赞 / 引用条，截图里都是噪声
+    ".post-actions",
+    ".post-menu-area",
+    ".topic-post > .topic-avatar",
+    ".who-liked",
+    ".post-notice",
+    ".ldfc-snap-backdrop"
   ];
 
   function escapeHtml(text) {
@@ -240,5 +247,15 @@
     }
   }
 
-  window.LDFCPreviewExport = { saveHtml, saveImage, opRoot };
+  window.LDFCPreviewExport = {
+    saveHtml,
+    saveImage,
+    opRoot,
+    // 供「生成快照」复用：同一套清理/等图/下载逻辑，避免两份实现漂移。
+    cleanClone,
+    waitImages,
+    download,
+    safeName,
+    fileStamp
+  };
 })();

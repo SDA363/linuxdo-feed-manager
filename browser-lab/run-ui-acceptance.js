@@ -960,7 +960,7 @@ async function main() {
       topicToolbar.tools.some((label) => label.includes("全部") || label.includes("楼主")) &&
       topicToolbar.tools.some((label) => label.includes("通知")) &&
       topicToolbar.tools.some((label) => label.includes("保存到本地")) &&
-      topicToolbar.tools.some((label) => label.includes("保存为图片")),
+      topicToolbar.tools.some((label) => label.includes("生成快照")),
     `首楼：3 个池子按钮 + 4 个工具按钮（${topicToolbar?.tools?.join(" / ") ?? "无"}）`
   );
   record(
@@ -994,7 +994,7 @@ async function main() {
   } catch {
     inSameRow = false;
   }
-  record(inSameRow, "三个按钮与「保存到本地 / 保存为图片」同一行");
+  record(inSameRow, "三个按钮与「保存到本地 / 生成快照」同一行");
   await page.waitForTimeout(600);
   record(
     (await page.evaluate(() => document.querySelectorAll(".ldfc-reader-actions-topic").length)) === 1,
@@ -1633,7 +1633,7 @@ async function main() {
       dock.toolLabels.some((label) => label.includes("随机跳楼")) &&
       dock.toolLabels.some((label) => label.includes("通知")) &&
       dock.toolLabels.some((label) => label.includes("保存到本地")) &&
-      dock.toolLabels.some((label) => label.includes("保存为图片")),
+      dock.toolLabels.some((label) => label.includes("生成快照")),
     `工具排六个按钮（${dock.toolLabels.join(" / ")}）`
   );
   record(
@@ -2102,8 +2102,12 @@ async function main() {
   );
   await page.click('ldfc-preview-dock button[data-tool="html"]');
   await page.waitForTimeout(900);
-  await page.click('ldfc-preview-dock button[data-tool="image"]');
+  await page.click('ldfc-preview-dock button[data-tool="snapshot"]');
+  await page.waitForTimeout(600);
+  await page.click(".ldfc-snap-panel .ldfc-snap-generate");
   await page.waitForTimeout(3000);
+  await page.click(".ldfc-snap-result-actions button");
+  await page.waitForTimeout(1200);
   const saved = (await extEval(page, browser, `window.__ldfcSaved`)) || [];
   const savedHtml = saved.find((item) => String(item.type || "").includes("text/html"));
   const savedPng = saved.find((item) => item.type === "image/png");
@@ -2115,7 +2119,7 @@ async function main() {
   );
   record(
     Boolean(savedPng) && (savedPng?.size ?? 0) > 1000,
-    `「保存为图片」产出 PNG（${savedPng?.size ?? 0} 字节）`
+    `「生成快照」产出 PNG（${savedPng?.size ?? 0} 字节）`
   );
 
   await page.evaluate(() => {
@@ -2204,6 +2208,29 @@ async function main() {
     floorJump.hasTarget && floorRequests.length >= 1 && floorJump.floors.includes("4"),
     `带楼层号的链接定位到第 3 楼（post_number 请求 ${floorRequests.length} 次，已渲染 ${floorJump.floors.join(",")}，高亮=${floorJump.flashed}）`
   );
+
+  // 快照面板：楼层列表要覆盖预览里已渲染的顶层帖子，默认只勾 1 楼。
+  await page.evaluate(() => {
+    document
+      .querySelector(".ldp-overlay .ldfc-preview-dock")
+      ?.shadowRoot?.querySelector('button[data-tool="snapshot"]')
+      ?.click();
+  });
+  await page.waitForTimeout(400);
+  const snapPanel = await page.evaluate(() => {
+    const items = [...document.querySelectorAll(".ldfc-snap-floor-item input")];
+    return {
+      floors: items.length,
+      checked: items.filter((item) => item.checked).length,
+      first: items[0]?.closest("label")?.textContent?.trim().slice(0, 3) ?? ""
+    };
+  });
+  record(
+    snapPanel.floors >= 3 && snapPanel.checked === 1 && snapPanel.first.startsWith("#1"),
+    `快照面板列出 ${snapPanel.floors} 层并默认只选 1 楼（已选 ${snapPanel.checked}）`
+  );
+  await page.evaluate(() => document.querySelector(".ldfc-snap-close")?.click());
+  await page.waitForTimeout(250);
 
   // ---- 随机跳楼：只验证提示与楼层变化都落在合法范围内 ----
   const highest = Number(await extEval(page, browser, "window.LDFCEnhancedPreview.highest()"));
@@ -2367,6 +2394,10 @@ async function main() {
   await page.waitForTimeout(150);
   await page.evaluate(() => document.querySelector("#ldfc-settings-launch")?.click());
   await page.waitForTimeout(250);
+  // 全新 profile 第一次打开设置会先出「首次安装」选择卡，点第一张才进正式设置。
+  // 不处理的话，冷启动跑这一整段都会因为找不到控件而失败。
+  await page.evaluate(() => document.querySelector(".ldfc-onboarding-card")?.click());
+  await page.waitForTimeout(200);
   const toggle = await page.evaluate(() => {
     const input = document.querySelector("#ldfc-preview-toggle");
     return { present: Boolean(input), checked: input?.checked ?? null };

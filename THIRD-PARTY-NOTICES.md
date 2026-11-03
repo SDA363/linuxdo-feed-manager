@@ -39,7 +39,18 @@
 
 ---
 
-## MIT License（适用于上述第 1、2、3 项）
+## 4. qrcodejs 1.0.0（内置）
+
+- 路径：`linuxdo-personal-feed-manager/vendor/qrcode.min.js`
+- 作者：davidshimjs
+- 主页：<https://github.com/davidshimjs/qrcodejs>
+- 许可：MIT License
+- 用途：「生成快照」在图片右上角生成指回原帖的二维码。
+- 改动：未修改逻辑，只在文件头补了一行版权与许可注释（压缩版原文没有注释头）。
+- 说明：原参考脚本用 CDN `@require` 引入；本项目改为本地内置，
+  因为 Chrome 扩展不允许远程代码，油猴版也不该为二维码多一个外网依赖。
+
+## MIT License（适用于上述第 1、2、3、4 项）
 
 Copyright (c) 各自作者，见上。
 
