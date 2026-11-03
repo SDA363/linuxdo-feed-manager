@@ -5139,6 +5139,28 @@
 
 
 
+  // LDFC change: 就地跳楼层。
+  //   已渲染 → 只滚动 + 展开祖先链，不动窗口；
+  //   没渲染 → 换目标窗口进来，但复用外壳节点（reuseOverlay），不重建预览窗。
+  // 不能在原地往列表尾巴追加窗口：引擎的双向加载游标是 openModal 里的闭包，
+  // 原地插入会让它拿着旧游标继续补，实测会出现 #1937 → #452 → #757 这种乱序。
+  async function jumpToFloor(postNumber) {
+    const ctx = CURRENT_CTX;
+    if (!ctx?.topicId) return false;
+    const target = Math.round(Number(postNumber));
+    if (!Number.isFinite(target) || target < 1) return false;
+    const floor = Math.min(target, Math.max(1, CURRENT_HIGHEST));
+    if (floor === 1) {
+      ctx.scrollRoot?.scrollTo?.({ top: 0, behavior: 'smooth' });
+      return true;
+    }
+    if (ctx.nodeMap.get(floor)?.isConnected) {
+      if (await locatePost(floor, ctx)) return true;
+    }
+    await openModal(ctx.topicId, floor, { reuseOverlay: true });
+    return true;
+  }
+
   function createFloorNavigator(nav, scrollRoot, topicId) {
 
     const thumb = nav.querySelector('.ldp-slider-thumb');
@@ -5301,9 +5323,9 @@
 
       }
 
-      // 复用现有目标楼层逻辑：窗口加载、楼号修正、祖先链展开和高亮均由 openModal 完成。
+      // LDFC change: 就地滚动到目标楼层，只补加载目标窗口；不再重建整个预览窗。
 
-      openModal(topicId, targetFloor);
+      jumpToFloor(targetFloor);
 
     };
 
@@ -5579,23 +5601,22 @@
 
    */
 
-  async function openModal(topicId, targetPostNumber) {
-
-    if (CURRENT_OVERLAY) {
-
+  async function openModal(topicId, targetPostNumber, options = {}) {
+    // LDFC change: reuseOverlay = 换窗口但保住外壳节点。楼层滑块跳楼时
+    // 不再把整个预览窗拆掉重建（不重放开场动画、不闪断），只换里面的 modal。
+    const reuseOverlay = !!options.reuseOverlay && !!CURRENT_OVERLAY?.isConnected;
+    if (CURRENT_OVERLAY && !reuseOverlay) {
       if (typeof CURRENT_OVERLAY.ldpClose === 'function') CURRENT_OVERLAY.ldpClose();
-
       else CURRENT_OVERLAY.remove();
-
       CURRENT_OVERLAY = null;
-
     }
-
-
-
+    if (reuseOverlay) {
+      // 先让上一代的请求 / tracker / 键盘监听收摊；再整体换掉 .ldp-modal，
+      // 旧节点上的监听器随节点一起消失，不会重复绑定。
+      CURRENT_OVERLAY.__ldpTeardown?.();
+    }
     const abortController = new AbortController();
-
-    const overlay = document.createElement('div');
+    const overlay = reuseOverlay ? CURRENT_OVERLAY : document.createElement('div');
 
     overlay.className = 'ldp-overlay';
 
@@ -5693,8 +5714,7 @@
 
       </div>`;
 
-    document.body.appendChild(overlay);
-
+    if (!reuseOverlay) document.body.appendChild(overlay);
     CURRENT_OVERLAY = overlay;
 
 
@@ -5769,40 +5789,31 @@
 
 
 
-    const close = () => {
-
+    const teardown = () => {
       abortController.abort(); // 取消所有进行中的请求
-
       tracker.stop();
-
       ctx.repliesIO?.disconnect();
-
       floorNavigator.destroy();
-
-      overlay.remove();
-
-      if (CURRENT_OVERLAY === overlay) CURRENT_OVERLAY = null;
-
-      if (CURRENT_CTX === ctx) {
-
-        CURRENT_CTX = null;
-
-        CURRENT_HIGHEST = 1;
-
-      }
-
       document.removeEventListener('keydown', onEsc);
+    };
+    // 供 reuseOverlay 用：只收摊，不拆外壳。
+    overlay.__ldpTeardown = teardown;
 
+    const close = () => {
+      teardown();
+      overlay.remove();
+      if (CURRENT_OVERLAY === overlay) CURRENT_OVERLAY = null;
+      if (CURRENT_CTX === ctx) {
+        CURRENT_CTX = null;
+        CURRENT_HIGHEST = 1;
+      }
     };
 
     function onEsc(e) { if (e.key === 'Escape') close(); }
-
     overlay.querySelector('.ldp-close').addEventListener('click', close);
-
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-
+    // 用属性赋值而不是 addEventListener：复用外壳时会直接覆盖上一代的后背景关闭。
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
     document.addEventListener('keydown', onEsc);
-
     overlay.ldpClose = close;
 
 
@@ -7092,23 +7103,11 @@
       const promise = openModal(topicId, targetPostNumber);
       return { overlay: CURRENT_OVERLAY, promise };
     },
-    // LDFC change: 跳到指定楼层（「随机跳楼层」用）。
-    // 目标楼层已加载 → 平滑滚动并高亮；没加载 → 按楼层号重开一次，
-    // 引擎会走 /t/<id>.json?post_number=N 拉一段包含它的窗口。
+    // LDFC change: 跳到指定楼层（「随机跳楼层」和楼层滑块都用它）。
+    // 已加载 → 平滑滚动并高亮；没加载 → 按 post_number 补一段窗口进来，
+    // 不重建预览窗（见 jumpToFloor）。
     async jumpTo(postNumber) {
-      const target = Math.round(Number(postNumber));
-      if (!CURRENT_CTX || !Number.isFinite(target) || target < 1) return false;
-      const floor = Math.min(target, Math.max(1, CURRENT_HIGHEST));
-      if (floor === 1) {
-        CURRENT_CTX.scrollRoot?.scrollTo?.({ top: 0, behavior: 'smooth' });
-        return true;
-      }
-      const located = await locatePost(floor, CURRENT_CTX);
-      if (located) return true;
-      const topicId = CURRENT_CTX?.topicId;
-      if (!topicId) return false;
-      await openModal(topicId, floor);
-      return true;
+      return jumpToFloor(postNumber);
     },
     // 当前主题的总楼层数（引擎最后一次 setTotal 的值）。
     highest() {
