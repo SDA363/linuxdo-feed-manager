@@ -37,6 +37,9 @@
   padding: 0;
   border: 0;
   border-radius: 15px;
+  /* 球是拖动把手：不加这句，浏览器会把"按住拖动"判成页面滚动并发出
+     pointercancel，手指一动就丢焦点，表现为"拖不动"。 */
+  touch-action: none;
   color: #fff;
   background:
     radial-gradient(115% 110% at 26% 14%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
@@ -558,7 +561,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
    移动浏览器没有可靠的 hover：列表行的操作按钮组原本只靠 :hover 显示，
    触摸端点一下只会闪一下，等于没有入口。这里改常显：
    - 压到 0.55 透明度，不抢标题；
-   - 只留图标（文字靠 hover 展开，触摸端永远打不开，留着只是空位）；
+   - 默认只留图标；文字走「按下 / 滚动停下」展开，等价于桌面的移入展开；
    - 按钮 36px 见方，斜着点也容易命中。
    按下行或进入多选时恢复不透明，给出明确反馈。 */
 @media (hover: none) and (pointer: coarse) {
@@ -584,8 +587,23 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
     padding: 0;
   }
 
-  .ldfc-action-text {
-    display: none;
+  /* 触摸端没有 hover，用两条等价通道展开文字：
+     1) 按下哪一枚就展开哪一枚（JS 打 .ldfc-press；:active 在触摸端实测不生效）
+        —— 只展开被按的那一枚，避免整组变宽把按钮挪到手指外；
+     2) 滚动停下后由 JS 打上 .ldfc-row-peek（见 interaction/desktopActions.js），
+        整组展开 1.6s，手指已抬起，不怕挪位。
+     默认仍是 max-width:0 的图标态，不占行宽。 */
+  .ldfc-action.ldfc-press .ldfc-action-text,
+  .ldfc-actions.ldfc-row-peek .ldfc-action-text {
+    max-width: 90px;
+    margin-left: 6px;
+    opacity: 1;
+    transform: none;
+  }
+
+  [data-topic-id] > .ldfc-actions.ldfc-row-peek,
+  .ldfc-topic-row .ldfc-actions.ldfc-row-peek {
+    opacity: 1;
   }
 
   .ldfc-action-icon,
@@ -594,13 +612,6 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
     height: 18px;
   }
 
-  /* 面板标题行的两个按钮也放大到 36px，单手操作也点得中 */
-  .ldfc-sheet-pin,
-  .ldfc-panel-close,
-  #ldfc-settings .ldfc-settings-close {
-    width: 36px;
-    height: 36px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2455,4 +2466,17 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   font-size: 24px;
   color: var(--ldfc-wm-color, #000);
   opacity: 0.18;
+}
+
+/* 触摸设备的标题行按钮放大到 36px。
+   必须放在文件末尾：上面的 .ldfc-sheet-pin / .ldfc-panel-close /
+   #ldfc-settings .ldfc-settings-close 都写了 28px，同特异性下后写者胜，
+   早先放在触摸断点里的 36px 一直被它们覆盖（真机实测仍是 28px）。 */
+@media (hover: none) and (pointer: coarse) {
+  .ldfc-sheet-pin,
+  .ldfc-panel-close,
+  #ldfc-settings .ldfc-settings-close {
+    width: 36px;
+    height: 36px;
+  }
 }

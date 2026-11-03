@@ -150,7 +150,8 @@
         opacity 180ms ease 40ms;
     }
     button:hover .ldfc-action-label,
-    button:focus-visible .ldfc-action-label {
+    button:focus-visible .ldfc-action-label,
+    button.ldfc-press .ldfc-action-label {
       max-width: 110px;
       margin-left: 6px;
       opacity: 1;
@@ -203,6 +204,8 @@
       gap: 6px;
     }
     .tools button {
+      display: flex;
+      align-items: center;
       height: 26px;
       padding: 0 10px;
       border: 1px solid rgba(127, 127, 127, 0.18);
@@ -231,6 +234,37 @@
     .tools button[disabled] {
       opacity: 0.55;
       cursor: progress;
+    }
+    /* 图标常显、文字默认收起；hover / 按下才展开（触摸端没有 hover，
+       由 bindTouchPress 打 .ldfc-press）。和预览窗工具排同一套节奏。 */
+    .ldfc-tool-icon {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .ldfc-tool-label {
+      max-width: 0;
+      margin-left: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateX(-6px);
+      transition:
+        max-width 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        margin-left 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 160ms ease 40ms;
+    }
+    .tools button:hover .ldfc-tool-label,
+    .tools button:focus-visible .ldfc-tool-label,
+    .tools button.ldfc-press .ldfc-tool-label,
+    .tools button[aria-pressed="true"] .ldfc-tool-label {
+      max-width: 160px;
+      margin-left: 5px;
+      opacity: 1;
+      transform: none;
     }
     @media (prefers-reduced-motion: reduce) {
       button, .ldfc-action-icon, .ldfc-action-label, .tools button { transition-duration: 1ms; }
@@ -324,7 +358,8 @@
         opacity 180ms ease 50ms;
     }
     button:hover .ldfc-dock-label,
-    button:focus-visible .ldfc-dock-label {
+    button:focus-visible .ldfc-dock-label,
+    button.ldfc-press .ldfc-dock-label {
       max-width: 140px;
       margin-left: 7px;
       opacity: 1;
@@ -364,7 +399,7 @@
       box-shadow: 0 0 8px var(--ldfc-tint);
       pointer-events: none;
     }
-    /* 第二排工具：与 dock 同一套深色玻璃，但不折叠文字 */
+    /* 第二排工具：与 dock 同一套深色玻璃，文字同样折叠（图标常显） */
     .tools {
       display: flex;
       align-items: center;
@@ -374,6 +409,8 @@
       margin-top: 7px;
     }
     .tools button {
+      display: flex;
+      align-items: center;
       height: 30px;
       padding: 0 12px;
       border: 1px solid rgba(255, 255, 255, 0.14);
@@ -405,6 +442,37 @@
     .tools button[disabled] {
       opacity: 0.6;
       cursor: progress;
+    }
+    /* 图标常显、文字默认收起；hover / 按下才展开，和 dock 同一套节奏。
+       触摸端没有 hover，由 bindTouchPress 打 .ldfc-press 展开。 */
+    .ldfc-tool-icon {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .ldfc-tool-label {
+      max-width: 0;
+      margin-left: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateX(-6px);
+      transition:
+        max-width 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        margin-left 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 160ms ease 40ms;
+    }
+    .tools button:hover .ldfc-tool-label,
+    .tools button:focus-visible .ldfc-tool-label,
+    .tools button.ldfc-press .ldfc-tool-label,
+    .tools button[aria-pressed="true"] .ldfc-tool-label {
+      max-width: 160px;
+      margin-left: 6px;
+      opacity: 1;
+      transform: none;
     }
     /* 设置里关掉通知按钮时用 hidden 收起（.tools button 的 display:flex 会盖掉 [hidden]）。 */
     .tools button[hidden] {
@@ -535,6 +603,7 @@
       button.dataset.pool = action.pool;
       button.title = action.label;
       button.setAttribute("aria-label", action.label);
+      bindTouchPress(button);
 
       const icon = document.createElement("span");
       icon.className = "ldfc-action-icon";
@@ -583,10 +652,35 @@
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  function nodeButton(text, onClick) {
+  // 触摸端没有可靠的 :active（真机实测按下时 :active 不生效），
+  // 用 pointerdown 打一个类、抬手清掉，等价于电脑端的「移入展开」。
+  function bindTouchPress(button) {
+    const off = () => button.classList.remove("ldfc-press");
+    button.addEventListener("pointerdown", () => button.classList.add("ldfc-press"));
+    for (const type of ["pointerup", "pointercancel", "pointerleave"]) {
+      button.addEventListener(type, off);
+    }
+  }
+
+  // 工具排按钮：图标常显、文字默认收起，hover / 按下时展开——
+  // 和 dock 的胶囊同一套节奏。触摸端没有 hover，靠 bindTouchPress 打类展开。
+  function nodeButton(text, onClick, icon) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = text;
+    bindTouchPress(button);
+    if (icon) {
+      const ico = document.createElement("span");
+      ico.className = "ldfc-tool-icon";
+      ico.textContent = icon;
+      ico.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.className = "ldfc-tool-label";
+      label.textContent = text;
+      button.append(ico, label);
+      button.setAttribute("aria-label", text);
+    } else {
+      button.textContent = text;
+    }
     button.addEventListener("click", (event) => {
       // 预览窗点空白会关窗；首楼行也可能被站点接管，统一拦住冒泡。
       event.preventDefault();
@@ -594,6 +688,18 @@
       onClick(button);
     });
     return button;
+  }
+
+  // 工具排的文字被拆成 .ldfc-tool-label，改名要落到 span 上，
+  // 不能直接写 button.textContent（那会把图标一起冲掉）。
+  function setToolLabel(button, text) {
+    const label = button?.querySelector?.(".ldfc-tool-label");
+    if (label) label.textContent = text;
+    else if (button) button.textContent = text;
+  }
+
+  function getToolLabel(button) {
+    return button?.querySelector?.(".ldfc-tool-label")?.textContent ?? button?.textContent ?? "";
   }
 
   function previewSaveScope(overlay) {
@@ -749,7 +855,7 @@
       const kind = host.classList.contains(DOCK_CLASS) ? "preview" : "topic";
       const label = onlyOp[kind] ? "当前只看楼主" : "当前查看全部";
       for (const button of host.shadowRoot?.querySelectorAll('button[data-tool="op"]') ?? []) {
-        if (button.textContent !== label) button.textContent = label;
+        if (getToolLabel(button) !== label) setToolLabel(button, label);
         if (button.getAttribute("aria-pressed") !== String(onlyOp[kind])) {
           button.setAttribute("aria-pressed", String(onlyOp[kind]));
         }
@@ -783,7 +889,7 @@
   async function expandChildren(overlay, button) {
     if (expanding) return;
     expanding = true;
-    const label = button.textContent;
+    const label = getToolLabel(button);
     button.disabled = true;
     let clicked = 0;
     try {
@@ -794,13 +900,13 @@
         if (!next) break;
         next.click();
         clicked += 1;
-        button.textContent = `展开中… ${clicked}`;
+        setToolLabel(button, `展开中… ${clicked}`);
         await delay(180);
       }
       window.LDFCToast.show(clicked ? `已展开 ${clicked} 层楼中楼` : "没有需要展开的楼中楼");
     } finally {
       button.disabled = false;
-      button.textContent = label;
+      setToolLabel(button, label);
       expanding = false;
     }
   }
@@ -814,9 +920,9 @@
     }
     // 1 楼是主贴，抽奖时跳过它。
     const floor = 2 + Math.floor(Math.random() * (highest - 1));
-    const label = button.textContent;
+    const label = getToolLabel(button);
     button.disabled = true;
-    button.textContent = "跳转中…";
+    setToolLabel(button, "跳转中…");
     try {
       const ok = await engine.jumpTo(floor);
       window.LDFCToast.show(
@@ -826,7 +932,7 @@
       window.LDFCToast.show(`跳转失败：${error?.message || error}`);
     } finally {
       button.disabled = false;
-      button.textContent = label;
+      setToolLabel(button, label);
     }
   }
 
@@ -895,7 +1001,7 @@
     // 4 和 3 在原站菜单里是同一项「关注」。
     const active = typeof level === "number" ? (level === 4 ? 3 : level) : null;
     const label = active === null ? "通知" : window.LDFCNotify?.LABELS?.[active] ?? "通知";
-    button.textContent = `🔔 ${label}`;
+    setToolLabel(button, label);
     if (!menu) return;
     for (const item of menu.querySelectorAll("[data-level]")) {
       item.setAttribute("aria-checked", String(Number(item.dataset.level) === active));
@@ -1170,14 +1276,14 @@
   }
 
   function createNotifyControl(resolveTopic) {
-    const button = nodeButton("🔔 通知", (target) => {
+    const button = nodeButton("通知", (target) => {
       if (notifyMenu && notifyOwner === target) {
         closeNotifyMenu(true);
         return;
       }
       closeNotifyMenu(false);
       openNotifyMenu(target, resolveTopic());
-    });
+    }, "🔔");
 
     // 悬停展开 / 移走收起：和一级面板同一套节奏。
     button.addEventListener("mouseenter", () => {
@@ -1217,21 +1323,25 @@
     tools.setAttribute("role", "toolbar");
     tools.setAttribute("aria-label", "主题工具");
 
-    const opButton = nodeButton(onlyOp[kind] ? "当前只看楼主" : "当前查看全部", () => {
-      setOnlyOp(kind, !onlyOp[kind]);
-    });
+    const opButton = nodeButton(
+      onlyOp[kind] ? "当前只看楼主" : "当前查看全部",
+      () => {
+        setOnlyOp(kind, !onlyOp[kind]);
+      },
+      "👁"
+    );
     opButton.dataset.tool = "op";
     opButton.title = "只显示楼主楼层（再点恢复全部）";
     opButton.setAttribute("aria-pressed", String(onlyOp[kind]));
     tools.appendChild(opButton);
 
     if (kind === "preview" && overlay) {
-      const expandButton = nodeButton("展开楼中楼", (button) => expandChildren(overlay, button));
+      const expandButton = nodeButton("展开楼中楼", (button) => expandChildren(overlay, button), "🧵");
       expandButton.dataset.tool = "expand";
       expandButton.title = "点开所有「展示更多回复」";
       tools.appendChild(expandButton);
 
-      const randomButton = nodeButton("随机跳楼", (button) => jumpRandom(button));
+      const randomButton = nodeButton("随机跳楼", (button) => jumpRandom(button), "🎲");
       randomButton.dataset.tool = "random";
       randomButton.title = "随机跳到一层（抽奖用）";
       tools.appendChild(randomButton);
@@ -1251,12 +1361,12 @@
 
     const scope = kind === "preview" && overlay ? previewSaveScope(overlay) : topicSaveScope();
 
-    const htmlButton = nodeButton("💾 保存到本地", (button) => runSave("html", scope, button));
+    const htmlButton = nodeButton("保存到本地", (button) => runSave("html", scope, button), "💾");
     htmlButton.dataset.tool = "html";
     htmlButton.title = "把主贴保存为离线可读的 HTML";
     tools.appendChild(htmlButton);
 
-    const snapshotButton = nodeButton("📸 生成快照", () => {
+    const snapshotButton = nodeButton("生成快照", () => {
       const api = window.LDFCSnapshot;
       if (!api?.open) {
         window.LDFCToast.show("快照功能未加载，请刷新页面再试");
@@ -1265,7 +1375,7 @@
       const posts =
         kind === "preview" && overlay ? previewSnapshotPosts(overlay) : topicSnapshotPosts();
       api.open({ title: scope.title(), url: scope.url(), posts });
-    });
+    }, "📸");
     snapshotButton.dataset.tool = "snapshot";
     snapshotButton.title = "选择楼层，生成带水印和二维码的长图";
     tools.appendChild(snapshotButton);
@@ -1294,6 +1404,7 @@
       button.dataset.pool = action.pool;
       button.title = action.label;
       button.setAttribute("aria-label", action.label);
+      bindTouchPress(button);
 
       const icon = document.createElement("span");
       icon.className = "ldfc-dock-icon";

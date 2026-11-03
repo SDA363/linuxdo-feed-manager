@@ -32,6 +32,10 @@
   const SHEET_MARGIN = 12;
   const SHEET_MAX_WIDTH = 420;
   const SHEET_MIN_WIDTH = 240;
+  // 触摸屏上必须留出「点面板外就关」真正点得到的地方：系统侧边手势区占了最外
+  // 十几像素，二级面板又常常顶满宽度，只剩 12px 边距时手指点不到（真机实测）。
+  // 这里在窄屏兜底宽度上再让出一条 56px 的可点边。
+  const SHEET_TOUCH_GUTTER = 56;
   // 动画速度倍率：0.1×（慢 10 倍）~ 2×（快 2 倍），1× 为正常速度
   const ANIM_SPEED_KEY = "animSpeed";
   const SHEET_DURATION_MS = 460;
@@ -265,7 +269,10 @@
     const spaceLeft = source.left - SHEET_GAP - margin;
     const preferRight = spaceRight >= spaceLeft;
     const available = Math.max(0, preferRight ? spaceRight : spaceLeft);
-    const usableWidth = Math.max(0, vw - margin * 2);
+    // 细指针点哪儿都准，满宽无所谓；触摸屏要在面板外侧留一条真正点得到的边，
+    // 否则「点外面自动关」等于没有（左右只剩 12px，还落在系统侧边手势区里）。
+    const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+    const usableWidth = Math.max(0, vw - margin * 2 - (coarse ? SHEET_TOUCH_GUTTER : 0));
 
     let width = Math.min(SHEET_MAX_WIDTH, available >= SHEET_MIN_WIDTH ? available : usableWidth);
     width = Math.min(width, usableWidth);
@@ -273,6 +280,9 @@
 
     let left = preferRight ? source.right + SHEET_GAP : source.left - SHEET_GAP - width;
     left = Math.max(margin, Math.min(left, vw - margin - width));
+    // 贴着一级面板放会把面板推到右边，右侧只剩 12px —— 又没地方点「外面」了。
+    // 触摸端把面板往左压，保证外侧始终留出那条可点的边。
+    if (coarse) left = Math.min(left, Math.max(margin, vw - margin - SHEET_TOUCH_GUTTER - width));
 
     const inUpperHalf = source.top + source.height / 2 < vh / 2;
     const top = inUpperHalf ? Math.max(margin, source.top) : margin;

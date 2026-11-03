@@ -120,6 +120,102 @@
     paintAll
   };
 
+  // ---- 触摸端：滚动停下就把那一行的文字展开一次 ----
+  //
+  // 桌面的「移入展开」在触摸端没有对应物：手指滑过整屏时是"推杆"，
+  // 不是"瞄准器"，滑动中展开的永远是路过的行。所以只在手停下来之后
+  // 做一次命中测试，展开 1.6s；按下按钮另有 CSS :active 兜底。
+  // 滚动期间只清状态、不做 DOM 查询，避免掉帧。
+  const PEEK_SETTLE_MS = 280;
+  const PEEK_HOLD_MS = 1600;
+  let peekEl = null;
+  let peekTimer = 0;
+  let peekClearTimer = 0;
+  let lastPoint = null;
+
+  function removePeek() {
+    if (!peekEl) return;
+    peekEl.classList.remove("ldfc-row-peek");
+    peekEl = null;
+  }
+
+  function clearPeek() {
+    clearTimeout(peekTimer);
+    clearTimeout(peekClearTimer);
+    peekTimer = 0;
+    peekClearTimer = 0;
+    removePeek();
+  }
+
+  function armPeek() {
+    if (!lastPoint) return;
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(() => {
+      peekTimer = 0;
+      removePeek();
+      const hit = document.elementFromPoint(lastPoint.x, lastPoint.y);
+      // 手指落点通常在标题上，按钮组贴在行右侧 —— 先回到整行，再取行内的按钮组。
+      const row = hit?.closest?.("[data-topic-id], .ldfc-topic-row");
+      const layer = row?.querySelector?.(".ldfc-actions") ?? hit?.closest?.(".ldfc-actions") ?? null;
+      if (!layer) return;
+      peekEl = layer;
+      layer.classList.add("ldfc-row-peek");
+      peekClearTimer = setTimeout(removePeek, PEEK_HOLD_MS);
+    }, PEEK_SETTLE_MS);
+  }
+
+  // 细指针环境不需要这套；viewport 一变（旋转/缩放）也重新判断。
+  function initPeek() {
+    if (!window.matchMedia?.("(pointer: coarse)")?.matches) return;
+    const track = (event) => {
+      const touch = event.touches?.[0];
+      if (touch) lastPoint = { x: touch.clientX, y: touch.clientY };
+    };
+    window.addEventListener(
+      "touchstart",
+      (event) => {
+        track(event);
+        clearPeek();
+      },
+      { passive: true }
+    );
+    window.addEventListener("touchmove", track, { passive: true });
+    window.addEventListener(
+      "scroll",
+      () => {
+        clearPeek();
+        armPeek();
+      },
+      { passive: true }
+    );
+  }
+
+  initPeek();
+
+  // 触摸端按下哪一枚就展开哪一枚的文字，抬手收起。
+  // 本来用 CSS :active，但真机实测触摸按下时 :active 不会落到 .ldfc-actions 上
+  //（点着胶囊查 :active 链，只到所在 TD 就断了），所以改成指针事件打类。
+  // 只展开被按的那一枚：整组展开会让胶囊变宽、把按钮挪到手指外。
+  let pressedButton = null;
+  function releasePress() {
+    if (!pressedButton) return;
+    pressedButton.classList.remove("ldfc-press");
+    pressedButton = null;
+  }
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      const button = event.target?.closest?.(".ldfc-action");
+      if (!button) return;
+      releasePress();
+      pressedButton = button;
+      button.classList.add("ldfc-press");
+    },
+    true
+  );
+  document.addEventListener("pointerup", releasePress, true);
+  document.addEventListener("pointercancel", releasePress, true);
+
   // 归属变化（标记 / 撤销 / 同步合并 / 自动已读）后统一重绘光效。
   document.addEventListener("ldfc:pool-change", paintAll);
 })();

@@ -15,6 +15,8 @@
   const IGNORE_CLICK_MS = 400;
   // 超过这个位移就不再算「按住不动」，改为拖拽投放。
   const DRAG_START_PX = 6;
+  // 触摸端「按住再拖」：按住超过这个时间后，移动一律算拖拽（拦掉翻页）。
+  const HOLD_TO_DRAG_MS = 180;
   const DOUBLE_CLICK_MS = 320;
   const DOUBLE_CLICK_PX = 6;
 
@@ -423,6 +425,33 @@
       // 手机上长按会弹系统菜单，把多选 / 拖拽的入口挡住
       if (!active) event.preventDefault();
     });
+
+    // 触摸端：按住 180ms 再移动 = 拖到池子；快速滑过 = 正常翻页。
+    // 浏览器在第一次 touchmove 时就决定要不要滚屏，一旦滚起来立刻发
+    // pointercancel，拖拽刚建立就被掐断（真机复现：pointercancel=1，页面跟着滚）。
+    // 非被动的 touchmove 在「按住够久」之后拦掉滚动，快速滑动仍然放行。
+    let holdReady = false;
+    let holdTimer = 0;
+    const clearHold = () => {
+      clearTimeout(holdTimer);
+      holdTimer = 0;
+      holdReady = false;
+    };
+    layer.addEventListener(
+      "touchstart",
+      () => {
+        clearHold();
+        holdTimer = setTimeout(() => {
+          holdReady = true;
+        }, HOLD_TO_DRAG_MS);
+      },
+      { passive: true }
+    );
+    layer.addEventListener("touchmove", (event) => {
+      if (holdReady) event.preventDefault();
+    });
+    layer.addEventListener("touchend", clearHold, { passive: true });
+    layer.addEventListener("touchcancel", clearHold, { passive: true });
   }
 
   // ---- 点击：多选里 = 勾选；同一枚双击 = 退出多选 ----
