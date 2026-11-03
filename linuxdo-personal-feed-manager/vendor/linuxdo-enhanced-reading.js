@@ -1137,6 +1137,8 @@
 
         highest_post_number: data.highest_post_number || data.posts_count || 1,
 
+        category_id: data.category_id,
+
         bookmarked: data.bookmarked,
 
         bookmark_id: data.bookmark_id,
