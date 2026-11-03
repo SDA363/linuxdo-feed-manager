@@ -623,26 +623,29 @@
   }
 
   // 快照的楼层来源。
-  //   预览窗：只取顶层 .ldp-post —— 楼中楼挂在父节点的 .ldp-children 里，
-  //   直接 querySelectorAll('.ldp-post') 会把它们重复列一遍。
-  //   注意顶层帖子并不全在 .ldp-topic 下：1 楼在 .ldp-topic，其余在 .ldp-comments，
-  //   所以判据是「没有 .ldp-post 祖先」而不是父节点类名。
+  //   预览窗：顶层帖子和楼中楼都列出来，楼中楼带 depth 供面板缩进。
+  //   顶层帖子并不全在 .ldp-topic 下：1 楼在 .ldp-topic，其余在 .ldp-comments。
+  //   顺序保持 DOM 顺序（即引擎的渲染顺序），不按楼层号重排 ——
+  //   楼中楼的楼层号可能远大于它所在的父楼，重排会让缩进关系看起来是错的。
   //   真实帖子页：每层一个 article#post_N。
   function previewSnapshotPosts(overlay) {
-    const enginePosts = [...overlay.querySelectorAll(".ldp-modal .ldp-post")].filter(
-      (node) => !node.parentElement?.closest(".ldp-post")
-    );
-    const nodes = enginePosts.length
-      ? enginePosts
-      : [...overlay.querySelectorAll(".ldp-modal .ldfc-pv-post")].filter(
-          (node) => !node.parentElement?.closest(".ldfc-pv-post")
-        );
-    return nodes
-      .map((node, index) => ({
+    const engine = [...overlay.querySelectorAll(".ldp-modal .ldp-post")];
+    const fallback = [...overlay.querySelectorAll(".ldp-modal .ldfc-pv-post")];
+    const nodes = engine.length ? engine : fallback;
+    const selector = engine.length ? ".ldp-post" : ".ldfc-pv-post";
+    return nodes.map((node, index) => {
+      let depth = 0;
+      let parent = node.parentElement?.closest(selector);
+      while (parent) {
+        depth += 1;
+        parent = parent.parentElement?.closest(selector);
+      }
+      return {
         number: Number(node.dataset.postNumber) || index + 1,
+        depth,
         node
-      }))
-      .sort((left, right) => left.number - right.number);
+      };
+    });
   }
 
   function topicSnapshotPosts() {

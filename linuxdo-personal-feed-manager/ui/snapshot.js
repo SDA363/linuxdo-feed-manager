@@ -354,6 +354,20 @@
 
   // ---------- 面板 ----------
 
+  // 父子同时勾选时，子楼已经跟着父楼的克隆一起进图了，
+  // 留着会在长图里重复出现一遍。
+  function dropContained(picked) {
+    const nodes = new Set(picked.map((item) => item.node));
+    return picked.filter((item) => {
+      let parent = item.node.parentElement?.closest(".ldp-post, .ldfc-pv-post");
+      while (parent) {
+        if (nodes.has(parent)) return false;
+        parent = parent.parentElement?.closest(".ldp-post, .ldfc-pv-post");
+      }
+      return true;
+    });
+  }
+
   function closePanel() {
     if (!activePanel) return;
     const panel = activePanel;
@@ -405,20 +419,24 @@
     const list = document.createElement("div");
     list.className = "ldfc-snap-floor-list";
     const boxes = [];
-    for (const post of posts) {
+    posts.forEach((post, index) => {
       const item = document.createElement("label");
       item.className = "ldfc-snap-floor-item";
+      // 楼中楼缩进一级，最多缩 3 级（再深就只是视觉噪声了）。
+      const depth = Math.max(0, Math.min(3, Number(post.depth) || 0));
+      if (depth > 0) item.style.paddingLeft = `${4 + depth * 16}px`;
       const box = document.createElement("input");
       box.type = "checkbox";
       box.checked = post.number === 1;
-      box.dataset.number = String(post.number);
+      // 用序号而不是楼层号做索引：楼中楼的楼层号可能重复出现在不同父楼里。
+      box.dataset.index = String(index);
       const text = document.createElement("span");
       const excerpt = (post.node.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40);
-      text.textContent = `#${post.number}  ${excerpt}${excerpt.length >= 40 ? "…" : ""}`;
+      text.textContent = `${depth > 0 ? "↳ " : ""}#${post.number}  ${excerpt}${excerpt.length >= 40 ? "…" : ""}`;
       item.append(box, text);
       boxes.push(box);
       list.appendChild(item);
-    }
+    });
     floorBox.append(floorHead, list);
 
     allButton.addEventListener("click", () => boxes.forEach((box) => (box.checked = true)));
@@ -472,7 +490,8 @@
 
     const hint = document.createElement("p");
     hint.className = "ldfc-snap-hint";
-    hint.textContent = `单张上限约 ${MAX_HEIGHT}px 高；楼层太多会自动缩小或提示。`;
+    hint.textContent =
+      `勾选父楼会连同它下面的楼中楼一起截图；单张上限约 ${MAX_HEIGHT}px 高。`;
 
     const actions = document.createElement("div");
     actions.className = "ldfc-snap-actions";
@@ -495,9 +514,7 @@
     document.addEventListener("keydown", onKey);
 
     generate.addEventListener("click", async () => {
-      const chosen = posts.filter((post) =>
-        boxes.some((box) => box.checked && Number(box.dataset.number) === post.number)
-      );
+      const chosen = dropContained(posts.filter((post, index) => boxes[index].checked));
       if (!chosen.length) {
         toast("至少选择一层");
         return;
