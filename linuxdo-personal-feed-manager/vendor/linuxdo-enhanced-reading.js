@@ -6329,6 +6329,14 @@
 
           }
 
+          // LDFC change: 暴露给「只看楼主」用 —— 只靠哨兵懒加载时，
+          // 隐藏了非楼主楼层后列表变短，哨兵可能提前离开视口，
+          // 楼主靠后的回帖就再也加载不出来。这里给一个可等待的入口。
+          ctx.loadDown = loadDown;
+          ctx.isLoadingDown = () => loadingDown;
+          ctx.isBottomReached = () => bottomReached;
+          ctx.loadedCount = () => loadedPostIds.size;
+
 
 
           async function loadUp() {
@@ -6960,6 +6968,13 @@
 
             }
 
+            // LDFC change: 嵌套树视图的加载入口，供「只看楼主」一次拉完。
+            ctx.loadMoreRoots = loadMoreRoots;
+
+            ctx.hasMoreRoots = () => nestedHasMoreRoots;
+
+            ctx.isLoadingMoreRoots = () => isLoadingMore;
+
           } else {
 
             showBottomTip();
@@ -7050,6 +7065,61 @@
     // 当前主题的总楼层数（引擎最后一次 setTotal 的值）。
     highest() {
       return CURRENT_HIGHEST;
+    },
+    // LDFC change: 一直加载到「没有更多评论」为止。
+    // 「只看楼主」必须用它：隐藏非楼主楼层后列表变短，哨兵可能提前
+    // 离开视口，楼主靠后的回帖就永远加载不出来。
+    // 返回 { ok, reason }，reason ∈ no-ctx / no-loader / stalled / timeout。
+    async loadAllComments({ timeoutMs = 90000 } = {}) {
+      const ctx = CURRENT_CTX;
+      if (!ctx) return { ok: false, reason: 'no-ctx' };
+      const started = Date.now();
+      let stalled = 0;
+      const rendered = () => document.querySelectorAll('.ldp-post').length;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      while (Date.now() - started < timeoutMs) {
+        // 嵌套树视图（当前预览默认走这条）
+        if (typeof ctx.loadMoreRoots === 'function') {
+          if (!ctx.hasMoreRoots()) return { ok: true };
+          if (ctx.isLoadingMoreRoots()) {
+            await wait(80);
+            continue;
+          }
+          const before = rendered();
+          await ctx.loadMoreRoots();
+          if (rendered() === before) {
+            stalled += 1;
+            if (stalled >= 3) return { ok: false, reason: 'stalled' };
+            await wait(200);
+          } else {
+            stalled = 0;
+          }
+          continue;
+        }
+
+        // /t/ 流式视图
+        if (typeof ctx.loadDown === 'function') {
+          if (ctx.isBottomReached()) return { ok: true };
+          if (ctx.isLoadingDown()) {
+            await wait(80);
+            continue;
+          }
+          const before = ctx.loadedCount();
+          await ctx.loadDown();
+          if (ctx.loadedCount() === before) {
+            stalled += 1;
+            if (stalled >= 3) return { ok: false, reason: 'stalled' };
+            await wait(200);
+          } else {
+            stalled = 0;
+          }
+          continue;
+        }
+
+        return { ok: false, reason: 'no-loader' };
+      }
+      return { ok: false, reason: 'timeout' };
     },
     close() {
       if (CURRENT_OVERLAY && typeof CURRENT_OVERLAY.ldpClose === 'function') {

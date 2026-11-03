@@ -77,6 +77,19 @@ const nestedTopic = {
   nested: true
 };
 
+// 顶层回复分两页返回：用来验证「只看楼主」的 loadAllComments
+// 真的会翻页拉完，而不是依赖哨兵碰巧还在视口。
+// 同样用 9xx 段，避开 101~110 的状态夹具。
+const pagedTopic = {
+  id: 908,
+  title: "Probe Paged Topic",
+  lastRead: 3,
+  unread: 0,
+  engaged: true,
+  nested: true,
+  paged: true
+};
+
 // 40 条批量未读：把 /unread.json 撑到一页以上，
 // 让 102 落到第 2 页 —— 这样"不在第 0 页 ⇒ 已处理完"的错误必然暴露。
 const bulkTopics = Array.from({ length: 40 }, (_, index) => ({
@@ -108,7 +121,14 @@ const moreTopics = Array.from({ length: 60 }, (_, index) => ({
   engaged: false
 }));
 
-const allTopics = [...coreTopics, nestedTopic, ...bulkTopics, ...freshTopics, ...moreTopics];
+const allTopics = [
+  ...coreTopics,
+  nestedTopic,
+  pagedTopic,
+  ...bulkTopics,
+  ...freshTopics,
+  ...moreTopics
+];
 
 // topicTrackingStates 的窗口上限。真实站点实测在 195~210 之间浮动，
 // 这里取 40，正好把最后几条批量 Topic 挤出窗口，
@@ -346,8 +366,35 @@ function nestedPost(topic, number) {
 // 真实嵌套树接口的形状：op_post + roots（每层带 children / direct_reply_count）。
 // 2 楼声称有 3 条直接回复，但只随树带回 1 条 —— 剩下 2 条由
 // /n/-/<id>/children/<n>.json 提供，这正是「展示更多回复」按钮的触发条件。
-function nestedTreeJson(topic) {
+function nestedTreeJson(topic, page = 0) {
   const highest = highestOf(topic);
+  const topicMeta = {
+    id: topic.id,
+    title: topic.title,
+    posts_count: highest,
+    highest_post_number: highest,
+    bookmarked: false,
+    bookmark_id: null
+  };
+
+  // 分页夹具：第 0 页给 2 楼并声明还有下一页，第 1 页给 3 楼。
+  if (topic.paged) {
+    const pageNum = Math.max(0, Number(page) || 0);
+    const roots =
+      pageNum === 0
+        ? [nestedPost(topic, 2)]
+        : pageNum === 1
+          ? [nestedPost(topic, 3)]
+          : [];
+    return {
+      op_post: nestedPost(topic, 1),
+      roots,
+      topic: topicMeta,
+      has_more_roots: pageNum < 1,
+      page: pageNum
+    };
+  }
+
   return {
     op_post: nestedPost(topic, 1),
     roots: [
@@ -357,14 +404,7 @@ function nestedTreeJson(topic) {
         children: [nestedPost(topic, 3)]
       }
     ],
-    topic: {
-      id: topic.id,
-      title: topic.title,
-      posts_count: highest,
-      highest_post_number: highest,
-      bookmarked: false,
-      bookmark_id: null
-    },
+    topic: topicMeta,
     has_more_roots: false,
     page: 0
   };
@@ -648,7 +688,10 @@ const server = http.createServer((request, response) => {
         response.writeHead(404).end("{}");
         return;
       }
-      if (topic.nested) return sendJson(response, nestedTreeJson(topic));
+      if (topic.nested) {
+        const page = Number(url.searchParams.get("page") || 0);
+        return sendJson(response, nestedTreeJson(topic, page));
+      }
       const postNumber = Number(url.searchParams.get("post_number") || 0);
       return sendJson(response, topicJson(topic, postNumber));
     }

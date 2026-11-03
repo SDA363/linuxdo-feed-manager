@@ -2389,6 +2389,29 @@ async function main() {
   await extEval(page, browser, `window.LDFCPreview.setEnabled(true)`);
   await page.waitForTimeout(150);
 
+  // 「只看楼主」必须把评论全部拉完（不能只靠哨兵懒加载）。
+  // 908 是个分页夹具：第 0 页只有 2 楼且 has_more_roots=true。
+  const loadAll = await extEval(
+    page,
+    browser,
+    `(async () => {
+      const opened = window.LDFCEnhancedPreview.open(908);
+      await opened.promise;
+      const before = document.querySelectorAll('.ldp-post').length;
+      const result = await window.LDFCEnhancedPreview.loadAllComments();
+      const after = document.querySelectorAll('.ldp-post').length;
+      const numbers = [...document.querySelectorAll('.ldp-post')].map((n) => n.dataset.postNumber);
+      window.LDFCEnhancedPreview.close();
+      return { before, after, result, numbers };
+    })()`
+  );
+  record(
+    loadAll?.result?.ok === true &&
+      loadAll.after > loadAll.before &&
+      (loadAll.numbers || []).includes("3"),
+    `「只看楼主」补全接口翻页拉完全部评论（${loadAll?.before} → ${loadAll?.after}，楼层 ${(loadAll?.numbers || []).join(",")}）`
+  );
+
   // 设置面板里的开关：默认开启，改动能落盘
   await extEval(page, browser, `window.LDFCNavigation.open()`);
   await page.waitForTimeout(150);

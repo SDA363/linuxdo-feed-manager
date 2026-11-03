@@ -689,6 +689,27 @@
     }
   }
 
+  // 只看楼主：必须把评论全部拉完，否则楼主靠后的回帖永远不出现 ——
+  // 隐藏非楼主楼层后列表变短，引擎的哨兵会提前离开视口、停止加载。
+  const opLoadAll = new WeakMap();
+
+  function loadAllForOnlyOp(overlay, { announce = false } = {}) {
+    if (!overlay || !onlyOp.preview) return;
+    if (opLoadAll.has(overlay)) return;
+    const api = window.LDFCEnhancedPreview;
+    if (typeof api?.loadAllComments !== "function") return;
+    opLoadAll.set(overlay, "running");
+    if (announce) {
+      window.LDFCToast?.show?.("只看楼主：正在加载全部评论以查找楼主楼层…");
+    }
+    Promise.resolve(api.loadAllComments())
+      .catch(() => ({ ok: false }))
+      .then(() => {
+        // 加载完再套一次筛选，新到楼层里属于楼主的要显示出来。
+        applyPreviewOnlyOp(overlay);
+      });
+  }
+
   // 真实帖子页：拿 #post_1 的 data-user-id 比较每一层 article。
   // 认不出楼主就整段不动 —— 宁可不筛，也不要把别人的帖子全藏了。
   function applyTopicOnlyOp() {
@@ -712,7 +733,11 @@
       // 写不进去只影响下次打开时的默认值
     }
     if (kind === "preview") {
-      for (const overlay of document.querySelectorAll(".ldp-overlay")) applyPreviewOnlyOp(overlay);
+      for (const overlay of document.querySelectorAll(".ldp-overlay")) {
+        if (onlyOp.preview) loadAllForOnlyOp(overlay, { announce: true });
+        else opLoadAll.delete(overlay);
+        applyPreviewOnlyOp(overlay);
+      }
     } else {
       applyTopicOnlyOp();
     }
@@ -743,7 +768,10 @@
       .then(([preview, topic]) => {
         if (typeof preview === "boolean") onlyOp.preview = preview;
         if (typeof topic === "boolean") onlyOp.topic = topic;
-        for (const overlay of document.querySelectorAll(".ldp-overlay")) applyPreviewOnlyOp(overlay);
+        for (const overlay of document.querySelectorAll(".ldp-overlay")) {
+          applyPreviewOnlyOp(overlay);
+          loadAllForOnlyOp(overlay);
+        }
         applyTopicOnlyOp();
         syncTools();
       })
@@ -1350,6 +1378,8 @@
       );
       slot.body.insertBefore(dock, slot.before);
       applyPreviewOnlyOp(overlay);
+      // 上次退出时开着只看楼主 → 打开后直接补全评论，不用再点一次。
+      loadAllForOnlyOp(overlay);
     }
   }
 
