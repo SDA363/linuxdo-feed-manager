@@ -175,9 +175,16 @@
     container.appendChild(layer);
   }
 
+  // 扩展版：vendor 是独立脚本，QRCode 挂在 window 上。
+  // 油猴版：vendor 被拼进同一个 IIFE，QRCode 是闭包变量，window 上取不到。
+  function qrLib() {
+    if (typeof window.QRCode === "function") return window.QRCode;
+    return typeof QRCode === "function" ? QRCode : null;
+  }
+
   function addQrCode(container, url) {
-    const Lib = window.QRCode;
-    if (typeof Lib !== "function") return;
+    const Lib = qrLib();
+    if (!Lib) return;
     const wrap = document.createElement("div");
     wrap.className = "ldfc-snap-qr";
     try {
@@ -552,5 +559,5 @@
     });
   }
 
-  window.LDFCSnapshot = { open };
+  window.LDFCSnapshot = { open, qrAvailable: () => Boolean(qrLib()) };
 })();
