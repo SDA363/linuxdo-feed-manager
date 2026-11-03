@@ -535,7 +535,8 @@
           // 不刷新的话用户会以为"没拉到"。
           window.LDFCRefreshAfterSync?.();
           if (result.ok) {
-            const stats = result.push?.stats ?? result.pull?.stats ?? { added: 0, updated: 0, removed: 0 };
+            // syncNow 给的是 pull + push 的合计；旧结构（没有 result.stats）继续兜底。
+            const stats = result.stats ?? result.pull?.stats ?? result.push?.stats ?? { added: 0, updated: 0, removed: 0 };
             toast(`同步完成：新增 ${stats.added}，更新 ${stats.updated}，删除 ${stats.removed}`);
           } else {
             toast(`同步失败：${reasonText(result)}`);

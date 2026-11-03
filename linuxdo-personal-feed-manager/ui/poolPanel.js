@@ -492,6 +492,8 @@
     // 否则这 360ms 里画上去的内容会跟着收起动画一起消失。
     const reopening = panel.hidden || panel.dataset.sheetState === "closing";
     panel.hidden = false;
+    // 每次重新展开都回到未固定：点外面能关才是手机的默认手感。
+    if (reopening) panel.dataset.pinned = "false";
 
     // 设置/向导面板和本面板占同一块区域，同时打开会互相遮挡，必须互斥。
     const settings = document.getElementById("ldfc-settings");
@@ -515,12 +517,33 @@
     close.textContent = "×";
     close.title = "关闭面板";
     close.setAttribute("aria-label", "关闭面板");
-    close.addEventListener("click", () => {
+    const closeSheet = () => {
       window.LDFCFilter.setActivePool("HOME");
       render("HOME");
       window.LDFCContent?.decorateRows?.();
       window.LDFCNavigation?.render?.();
+    };
+    close.addEventListener("click", closeSheet);
+
+    // 标题行的「固定」开关：默认不固定，点面板外自动关（手机上更快）；
+    // 固定后点外面不关。每次重新展开都会回到未固定，见上面的 reopening。
+    const pin = document.createElement("button");
+    pin.type = "button";
+    pin.id = "ldfc-panel-pin";
+    pin.className = "ldfc-sheet-pin";
+    pin.textContent = "📌";
+    pin.title = "固定面板（点外面不会关闭）";
+    pin.setAttribute("aria-label", "固定面板");
+    pin.setAttribute("aria-pressed", String(panel.dataset.pinned === "true"));
+    pin.addEventListener("click", () => {
+      const next = panel.dataset.pinned !== "true";
+      panel.dataset.pinned = String(next);
+      pin.setAttribute("aria-pressed", String(next));
+      pin.title = next ? "已固定：点外面不会关闭" : "固定面板（点外面不会关闭）";
     });
+
+    const tools = document.createElement("div");
+    tools.className = "ldfc-sheet-tools";
     // 池内多选时，标题行换成「已选 N + 移入… + 完成」：进入入口仍是长按，
     // 不额外增加常驻按钮；批量目标沿用同一个 MOVE_TARGETS 胶囊行。
     let bulkTargets = null;
@@ -546,7 +569,7 @@
       done.addEventListener("click", () => exitSelection());
 
       bulk.append(countEl, moveBtn, done);
-      header.append(title, bulk, close);
+      tools.append(bulk);
 
       bulkTargets = document.createElement("div");
       bulkTargets.className = "ldfc-move-targets ldfc-bulk-targets";
@@ -559,9 +582,9 @@
         bulkTargets.hidden = !bulkTargets.hidden;
         moveBtn.setAttribute("aria-expanded", String(!bulkTargets.hidden));
       });
-    } else {
-      header.append(title, close);
     }
+    tools.append(pin, close);
+    header.append(title, tools);
     panel.appendChild(header);
     if (bulkTargets) panel.appendChild(bulkTargets);
 
@@ -618,6 +641,13 @@
     panel.hidden = true;
     panel.addEventListener("scroll", onPanelScroll, { passive: true });
     document.body.appendChild(panel);
+    // 未固定时点面板外部即关闭（固定按钮在标题行里）。
+    window.LDFCNavigation?.bindSheetDismiss?.(panel, () => {
+      window.LDFCFilter.setActivePool("HOME");
+      render("HOME");
+      window.LDFCContent?.decorateRows?.();
+      window.LDFCNavigation?.render?.();
+    });
     return panel;
   }
 

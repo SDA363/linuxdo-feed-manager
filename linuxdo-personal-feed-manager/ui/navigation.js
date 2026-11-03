@@ -72,8 +72,21 @@
   let lastHomeCount = 0;
   // 动画速度倍率，见 ANIM_SPEED_KEY
   let animSpeed = 1;
+
+  // 默认「启动时显示」：小屏 / 触摸设备只给悬浮球。
+  // 一级面板在手机上会压掉大半屏内容，用户第一眼要的是入口而不是挡板；
+  // 桌面照旧展开面板，V1.0 的观感不变。
+  function prefersFabStart() {
+    try {
+      if (window.matchMedia?.("(pointer: coarse)")?.matches) return true;
+    } catch {
+      // matchMedia 不可用时按宽度判断
+    }
+    return window.innerWidth < 900;
+  }
+
   // 启动时显示一级面板还是悬浮球，见 START_MODE_KEY
-  let startMode = "panel";
+  let startMode = prefersFabStart() ? "fab" : "panel";
 
   function countFor(pool) {
     const state = window.LDFCTopicState;
@@ -773,8 +786,38 @@
     items.appendChild(element);
   }
 
+  // 二级面板（设置 / 信息池）的「点外面就关」。
+  //
+  // 手机上这些面板占大半屏、内容又长，关闭按钮在标题行顶部；用户滚到
+  // 底部后得一路滑回顶部才能关。标题行吸顶（CSS）解决了"找不到按钮"，
+  // 这里再补一条更符合手持习惯的出口：命中面板外部就直接关。
+  //
+  // 面板标题行的「固定」按钮会把 dataset.pinned 置为 "true"，此时不自动关。
+  // 外部那一下要吃掉，否则关面板的同一次点击会顺手把列表行标记掉。
+  function bindSheetDismiss(sheet, close) {
+    if (!sheet || sheet.dataset.ldfcDismiss === "1") return;
+    sheet.dataset.ldfcDismiss = "1";
+
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (sheet.hidden) return;
+        if (sheet.dataset.pinned === "true") return;
+        const target = event.target;
+        if (!(target instanceof Node)) return;
+        if (sheet.contains(target)) return;
+        if (nav && nav.contains(target)) return;
+        close();
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true
+    );
+  }
+
   window.LDFCNavigation = {
     appendItem,
+    bindSheetDismiss,
     close,
     create,
     finishHideSheet,

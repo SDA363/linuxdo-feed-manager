@@ -554,6 +554,55 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   pointer-events: none;
 }
 
+/* ===== 触摸设备（手机 / 平板） =====
+   移动浏览器没有可靠的 hover：列表行的操作按钮组原本只靠 :hover 显示，
+   触摸端点一下只会闪一下，等于没有入口。这里改常显：
+   - 压到 0.55 透明度，不抢标题；
+   - 只留图标（文字靠 hover 展开，触摸端永远打不开，留着只是空位）；
+   - 按钮 36px 见方，斜着点也容易命中。
+   按下行或进入多选时恢复不透明，给出明确反馈。 */
+@media (hover: none) and (pointer: coarse) {
+  [data-topic-id] > .ldfc-actions,
+  .ldfc-topic-row .ldfc-actions {
+    display: inline-flex;
+    gap: 0;
+    padding: 2px;
+    opacity: 0.55;
+  }
+
+  .ldfc-topic-row:active .ldfc-actions,
+  [data-topic-id]:active > .ldfc-actions,
+  html.ldfc-selecting [data-topic-id] .ldfc-actions,
+  html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
+    opacity: 1;
+  }
+
+  .ldfc-action {
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  .ldfc-action-text {
+    display: none;
+  }
+
+  .ldfc-action-icon,
+  .ldfc-action svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* 面板标题行的两个按钮也放大到 36px，单手操作也点得中 */
+  .ldfc-sheet-pin,
+  .ldfc-panel-close,
+  #ldfc-settings .ldfc-settings-close {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ldfc-action,
   .ldfc-action-icon,
@@ -699,6 +748,58 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 .ldfc-panel-close:active {
+  transform: scale(0.92);
+}
+
+/* ===== 二级面板的标题行：吸顶 + 固定开关 =====
+   手机屏小，设置/信息池面板的内容常常超过一屏。标题行原来跟着滚走，
+   用户要关面板得先一路滑回顶部。这里让标题行吸顶：
+   - 负 margin 抵消面板自身的 16px padding，底色才能盖住滚上来的内容；
+   - 固定按钮和关闭按钮都留在右侧，随时可点。 */
+.ldfc-panel-header,
+#ldfc-settings .ldfc-settings-header {
+  position: sticky;
+  top: -16px;
+  z-index: 4;
+  margin: -16px -16px 12px;
+  padding: 16px 16px 10px;
+  background: rgba(18, 18, 22, 0.98);
+}
+
+.ldfc-sheet-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* 未固定 = 点面板外就关；按下后常驻。 */
+.ldfc-sheet-pin {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eee;
+  font: 400 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition:
+    background 180ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 140ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ldfc-sheet-pin:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.ldfc-sheet-pin[aria-pressed="true"] {
+  background: rgba(126, 140, 240, 0.92);
+  color: #fff;
+}
+
+.ldfc-sheet-pin:active {
   transform: scale(0.92);
 }
 

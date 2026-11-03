@@ -502,6 +502,31 @@ async function main() {
   const result = await service.syncNow();
   check(result.ok === true && result.pull.ok === true && result.push.ok === true, "syncNow = pull + push");
   check((await model.decodeRemoteDoc(transport.doc()))?.topics?.length === 1, "syncNow 之后远端有本地数据");
+  check(result.stats?.added === 0, "syncNow 统计：本地已有数据推上去不算新增");
+}
+
+// ---- 10. syncNow 的统计不能被 push 那份恒为 0 的结果盖掉 ----
+{
+  // 复现手机端现象：远端有 2 条、本地空。pull 把 2 条拉进来（added=2），
+  // push 紧接着在已合并的状态上跑，它自己的 stats 是 0。UI 只看 push 就会显示 0。
+  const remoteDoc = model.toRemoteDoc({
+    namespace: "user-1",
+    deviceId: "device-b",
+    topics: [
+      record("1", { updatedAt: 2_000, deviceId: "device-b" }),
+      record("2", { updatedAt: 2_000, deviceId: "device-b" })
+    ],
+    tombstones: []
+  });
+  const storage = createStorage();
+  const transport = createTransport(remoteDoc);
+  const service = buildService(storage, transport);
+
+  const result = await service.syncNow();
+  check(result.ok === true, "syncNow 统计：远端 2 条 / 本地空，同步成功");
+  check(result.push?.stats?.added === 0, "syncNow 统计：push 自己的新增确实是 0");
+  check(result.stats?.added === 2, "syncNow 统计：对外给的是 pull 的新增数 2");
+  check(service.getStatus().stats?.added === 2, "syncNow 统计：状态栏回填合计值");
 }
 }
 

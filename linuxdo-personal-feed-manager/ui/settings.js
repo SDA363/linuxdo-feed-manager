@@ -30,12 +30,34 @@
     return element;
   }
 
+  // 标题行的「固定」开关。默认不固定：点面板外部就关，手机上一伸手就能退出；
+  // 按下固定后点外面不关，方便一边看列表一边对照设置。
+  // 每次重新打开都会回到未固定（见 toggle）。
+  function pinButton() {
+    const element = button("📌", () => {
+      const sheet = document.getElementById("ldfc-settings");
+      const pinned = sheet?.dataset.pinned === "true";
+      if (sheet) sheet.dataset.pinned = String(!pinned);
+      element.setAttribute("aria-pressed", String(!pinned));
+      element.title = pinned ? "固定面板（点外面不会关闭）" : "已固定：点外面不会关闭";
+    });
+    element.id = "ldfc-settings-pin";
+    element.className = "ldfc-sheet-pin";
+    element.title = "固定面板（点外面不会关闭）";
+    element.setAttribute("aria-label", "固定面板");
+    element.setAttribute("aria-pressed", "false");
+    return element;
+  }
+
   function panelHeader(text) {
     const header = document.createElement("div");
     header.className = "ldfc-settings-header";
     const title = document.createElement("h2");
     title.textContent = text;
-    header.append(title, closeButton());
+    const tools = document.createElement("div");
+    tools.className = "ldfc-sheet-tools";
+    tools.append(pinButton(), closeButton());
+    header.append(title, tools);
     return header;
   }
 
@@ -575,6 +597,10 @@
 
     if (opening) {
       panel.hidden = false;
+      // 每次打开都回到"未固定"：用户点开设置通常是临时看一眼，
+      // 而不是希望它一直压着列表。
+      panel.dataset.pinned = "false";
+      panel.querySelector(".ldfc-sheet-pin")?.setAttribute("aria-pressed", "false");
       // 本面板和「信息池面板」位置重合，必须互斥；
       // 同时把列表切回主信息流，否则会留下"列表被过滤光 + 面板又被收起"的空屏。
       const poolPanel = document.getElementById("ldfc-panel");
@@ -607,6 +633,9 @@
     panel.id = "ldfc-settings";
     panel.hidden = true;
     document.body.appendChild(panel);
+
+    // 未固定时点面板外部即关闭（固定按钮在标题行里）。
+    window.LDFCNavigation?.bindSheetDismiss?.(panel, () => toggle());
 
     // Esc 也能收起，符合面板类浮层的一般预期。
     document.addEventListener("keydown", (event) => {

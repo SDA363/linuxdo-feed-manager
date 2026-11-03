@@ -30,6 +30,21 @@
     return { added: 0, updated: 0, removed: 0, unchanged: 0 };
   }
 
+  // pull 和 push 各算一次"相对本地"的变化量。syncNow 是 pull → push，
+  // push 前本地已经合并过远端，它自己的 stats 基本恒为 0；直接只看 push
+  // 会让 UI 永远显示 0。两步合计才是用户真正关心的数字。
+  function sumStats(...list) {
+    const out = emptyStats();
+    for (const stats of list) {
+      if (!stats) continue;
+      out.added += stats.added || 0;
+      out.updated += stats.updated || 0;
+      out.removed += stats.removed || 0;
+      out.unchanged += stats.unchanged || 0;
+    }
+    return out;
+  }
+
   function statsChanged(stats) {
     return Boolean(stats && (stats.added || stats.updated || stats.removed));
   }
@@ -316,7 +331,12 @@
       const pulled = await pull();
       if (!pulled.ok) return { ok: false, pull: pulled, push: null };
       const pushed = await push();
-      return { ok: pushed.ok, pull: pulled, push: pushed };
+      // 真实变化发生在 pull（push 只是在已合并状态上写回），所以对外给合计值，
+      // 并且回填 status：否则 markOk 会被 push 那份恒为 0 的 stats 覆盖。
+      const stats = sumStats(pulled.stats, pushed.stats);
+      status.stats = stats;
+      status.lastResult = { ...status.lastResult, stats };
+      return { ok: pushed.ok, pull: pulled, push: pushed, stats };
     }
 
     // 每次打开站点只自动拉一次；失败也不再循环重试（避免请求风暴）。
