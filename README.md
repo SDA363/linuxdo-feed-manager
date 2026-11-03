@@ -7,13 +7,19 @@
 **感兴趣 / 已读 / 不感兴趣 / 新回复** 四个池子，把处理过的内容从列表里收起来。
 论坛仍然负责内容、阅读位置和未读状态，扩展只做「归你管的那一层」。
 
-当前版本：**1.1.1**（Chrome / Edge，Manifest V3）
+当前版本：**1.1.2**（Chrome / Edge，Manifest V3）
 
 ## 下载
 
 - 仓库：<https://github.com/SDA363/linuxdo-feed-manager>
-- 发布页（含油猴脚本 `ldfc.user.js` 与 Firefox 打包产物）：
+- 发布页（**插件包**与**脚本**分开下载）：
   <https://github.com/SDA363/linuxdo-feed-manager/releases/latest>
+
+  | 文件 | 给谁用 |
+  |---|---|
+  | `linuxdo-feed-manager-chrome-1.1.2.zip` | Chrome / Edge 插件（解压后「加载已解压的扩展程序」） |
+  | `ldfc.user.js` | 油猴 / 篡改猴脚本（Tampermonkey → 导入） |
+  | `linuxdo-feed-manager-firefox-1.1.2.zip` | Firefox 打包产物；Android 安装前需经 AMO 签名 |
 
 ## 功能
 
@@ -55,9 +61,14 @@
 
 ### Chrome / Edge（未打包扩展）
 
-1. 打开 `chrome://extensions`，右上角打开「开发者模式」。
-2. 点「加载已解压的扩展程序」，选择本仓库的 `linuxdo-personal-feed-manager/` 目录。
-3. 打开 <https://linux.do/>，刷新页面。
+1. 从[发布页](https://github.com/SDA363/linuxdo-feed-manager/releases/latest)下载
+   `linuxdo-feed-manager-chrome-<版本>.zip` 并解压（或直接用本仓库的
+   `linuxdo-personal-feed-manager/` 目录）。
+2. 打开 `chrome://extensions`，右上角打开「开发者模式」。
+3. 点「加载已解压的扩展程序」，选择解压出来的目录（**要能看到 `manifest.json` 的那一层**）。
+4. 打开 <https://linux.do/>，刷新页面。
+
+> 更新时：用新包覆盖同一目录 → 在 `chrome://extensions` 点「重新加载」→ 页面 Ctrl+F5。
 
 ### 油猴 / 篡改猴
 
@@ -102,7 +113,7 @@ node tools/build-userscript.js   # 输出 dist/ldfc.user.js
 |---|---|
 | Chrome / Edge（MV3，桌面） | 已实现并验收 |
 | 油猴 / 篡改猴（`@grant GM_xmlhttpRequest`） | 已实现并冒烟验收；云同步走 GM 跨域（真实网盘 NOT TESTED） |
-| Firefox for Android | 已生成签名用打包产物（`dist/linuxdo-feed-manager-firefox-1.1.1.zip`）；**仅模拟器链路验证，真实手机 NOT TESTED** |
+| Firefox for Android | 已生成签名用打包产物（`dist/linuxdo-feed-manager-firefox-1.1.2.zip`）；**仅模拟器链路验证，真实手机 NOT TESTED** |
 | iOS / iPadOS | 未支持 |
 
 ## 测试

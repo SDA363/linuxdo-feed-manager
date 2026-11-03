@@ -67,3 +67,5 @@ browser-lab/README.md
 linuxdo-personal-feed-manager/README.md
 docs/LDFC-1.0.0-Git封存记录.md
 docs/LDFC-Mobile-Phase1-Firefox最终提交包.md
+
+browser-lab/*.log
