@@ -4543,7 +4543,11 @@
 
         if (!raw) return;
 
-        if (raw.length < 16) { alert('帖子必须至少为16个字符'); return; }
+        // 原来写死 16，和站点真实 min_post_length 对不上（实测同站是 3）。
+        // 取不到真实值就不拦，交给服务器按站点规则判断。
+        const minLength = resolveMinPostLength();
+
+        if (minLength > 0 && raw.length < minLength) { alert(`帖子必须至少为${minLength}个字符`); return; }
 
         sendBtn.disabled = true;
 

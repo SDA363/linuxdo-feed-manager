@@ -22,10 +22,10 @@
 - 改动（已在文件头注明）：
   1. 去掉它自带的点击拦截，改为对外暴露 `LDFCEnhancedPreview`，
      由 LDFC 决定何时打开预览；
-  2. 回复框的「最少 N 个字符」改运行时读取
-     （`Discourse.SiteSettings.min_post_length` / 分类覆盖 /
-     `#data-preloaded`），读不到就不显示数字。原脚本写死 16，
-     与站点真实限制对不上。
+  2. 回复的最小字数改运行时读取（`Discourse.SiteSettings.min_post_length`
+     / 分类覆盖 / `#data-preloaded`）：回复框提示与发送前校验都用这个值，
+     读不到就不显示、不拦截。原脚本把 16 写死在两处
+     （placeholder 与发送前 `alert`），与站点真实限制（实测为 3）对不上。
 
 ## 3. linux.do 小助手（功能参考，未内联代码）
 
