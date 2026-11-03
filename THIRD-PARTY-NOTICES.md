@@ -19,8 +19,13 @@
 - 原始分发：Greasy Fork script 584412
   <https://update.greasyfork.org/scripts/584412/LinuxDo%20%E5%A2%9E%E5%BC%BA%E9%98%85%E8%AF%BB.user.js>
 - 用途：列表页点标题弹窗预览整帖（LDFC 的预览窗口引擎）。
-- 改动（已在文件头注明）：去掉它自带的点击拦截，改为对外暴露
-  `LDFCEnhancedPreview`，由 LDFC 决定何时打开预览。
+- 改动（已在文件头注明）：
+  1. 去掉它自带的点击拦截，改为对外暴露 `LDFCEnhancedPreview`，
+     由 LDFC 决定何时打开预览；
+  2. 回复框的「最少 N 个字符」改运行时读取
+     （`Discourse.SiteSettings.min_post_length` / 分类覆盖 /
+     `#data-preloaded`），读不到就不显示数字。原脚本写死 16，
+     与站点真实限制对不上。
 
 ## 3. linux.do 小助手（功能参考，未内联代码）
 

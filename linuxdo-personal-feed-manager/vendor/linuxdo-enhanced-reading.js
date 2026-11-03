@@ -3303,6 +3303,50 @@
 
   /* ============ 8. 回复框 ============ */
 
+  // 最小回复长度不是常量：站点有默认值（min_post_length），分类还能各自覆盖。
+  // 写死一个数字必然和真实规则对不上（同一站点不同分类会变），所以动态取。
+  // 取不到就返回 0 —— 此时宁可不显示，也不要给用户一个错的数字。
+  let CURRENT_CATEGORY_ID = 0;
+
+  function readPreloadedSiteSettings() {
+    try {
+      const raw = document.getElementById('data-preloaded')?.dataset?.preloaded;
+      if (!raw) return null;
+      const settings = JSON.parse(raw)?.siteSettings;
+      if (!settings) return null;
+      return typeof settings === 'string' ? JSON.parse(settings) : settings;
+    } catch {
+      return null;
+    }
+  }
+
+  function resolveMinPostLength() {
+    let base = 0;
+    try {
+      base = Number(window.Discourse?.SiteSettings?.min_post_length) || 0;
+    } catch {
+      base = 0;
+    }
+    if (!base) {
+      base = Number(readPreloadedSiteSettings()?.min_post_length) || 0;
+    }
+
+    if (!CURRENT_CATEGORY_ID) return base;
+
+    try {
+      const categories =
+        window.Discourse?.Site?.currentProp?.('categories') ??
+        window.Discourse?.Categories?.list ??
+        [];
+      const category = categories.find((item) => Number(item?.id) === Number(CURRENT_CATEGORY_ID));
+      const perCategory = Number(category?.min_post_length) || 0;
+      if (perCategory > 0) return perCategory;
+    } catch {
+      // 分类覆盖读不到就退回站点默认值
+    }
+    return base;
+  }
+
   function ensureReplyBox(post) {
 
     let box = post.querySelector(':scope > .ldp-replybox');
@@ -3314,8 +3358,10 @@
     box = document.createElement('div');
 
     box.className = 'ldp-replybox';
+    const minLength = resolveMinPostLength();
+    const minHint = minLength > 0 ? ` (最少${minLength}个字符)` : '';
 
-    box.innerHTML = `<textarea placeholder="回复 @${esc(username)} … (最少16个字符)"></textarea><div class="ldp-reply-tools"><div class="ldp-insert-wrap"><button class="ldp-emoji-btn ldp-reply-insert" type="button" title="插入模板" aria-haspopup="true" aria-expanded="false">${INSERT_BTN_ICON}</button><div class="ldp-insert-menu" hidden><button class="ldp-insert-item ldp-reply-details" type="button">${DETAILS_ICON}<span>隐藏详细信息</span></button><button class="ldp-insert-item ldp-reply-spoiler" type="button">${SPOILER_ICON}<span>模糊剧透</span></button></div></div><button class="ldp-emoji-btn ldp-reply-emoji" type="button" title="表情">${EMOJI_BTN_ICON}</button><button class="ldp-send">发送</button><span class="ldp-reply-tip">✓ 已发送</span></div>`;
+    box.innerHTML = `<textarea placeholder="回复 @${esc(username)} …${minHint}"></textarea><div class="ldp-reply-tools"><div class="ldp-insert-wrap"><button class="ldp-emoji-btn ldp-reply-insert" type="button" title="插入模板" aria-haspopup="true" aria-expanded="false">${INSERT_BTN_ICON}</button><div class="ldp-insert-menu" hidden><button class="ldp-insert-item ldp-reply-details" type="button">${DETAILS_ICON}<span>隐藏详细信息</span></button><button class="ldp-insert-item ldp-reply-spoiler" type="button">${SPOILER_ICON}<span>模糊剧透</span></button></div></div><button class="ldp-emoji-btn ldp-reply-emoji" type="button" title="表情">${EMOJI_BTN_ICON}</button><button class="ldp-send">发送</button><span class="ldp-reply-tip">✓ 已发送</span></div>`;
 
     const textarea = box.querySelector('textarea');
 
@@ -6634,6 +6680,7 @@
         );
 
         CURRENT_HIGHEST = Math.max(1, Number(topicMeta?.highest_post_number || topicMeta?.posts_count || 1));
+        CURRENT_CATEGORY_ID = Number(topicMeta?.category_id) || 0;
 
 
 
