@@ -120,47 +120,78 @@
     paintAll
   };
 
-  // ---- 触摸端：滚动停下就把那一行的文字展开一次 ----
+  // ---- 触摸端：模拟桌面的「移入展开胶囊」 ----
   //
-  // 桌面的「移入展开」在触摸端没有对应物：手指滑过整屏时是"推杆"，
-  // 不是"瞄准器"，滑动中展开的永远是路过的行。所以只在手停下来之后
-  // 做一次命中测试，展开 1.6s；按下按钮另有 CSS :active 兜底。
-  // 滚动期间只清状态、不做 DOM 查询，避免掉帧。
+  // 桌面靠 :hover，触摸端没有悬停。这里把「手指位置」当成鼠标位置：
+  //   1) 手指按下 / 滑动经过哪一行 → 那一行的胶囊立刻显形（.ldfc-row-active）
+  //   2) 滚动或抬手后停稳 280ms → 追加 .ldfc-row-peek，把文字也展开 1.6s
+  //   3) 命中测试用 rAF 节流，滚动期间不做同步 DOM 遍历
+  // CSS 侧默认 opacity:0 + pointer-events:none，避免「透明但能点」的陷阱。
   const PEEK_SETTLE_MS = 280;
   const PEEK_HOLD_MS = 1600;
-  let peekEl = null;
+  let activeLayer = null;
+  let lastPoint = null;
+  let followRaf = 0;
   let peekTimer = 0;
   let peekClearTimer = 0;
-  let lastPoint = null;
 
   function removePeek() {
-    if (!peekEl) return;
-    peekEl.classList.remove("ldfc-row-peek");
-    peekEl = null;
+    clearTimeout(peekTimer);
+    peekTimer = 0;
+    clearTimeout(peekClearTimer);
+    peekClearTimer = 0;
+    activeLayer?.classList.remove("ldfc-row-peek");
   }
 
-  function clearPeek() {
-    clearTimeout(peekTimer);
+  function layerAt(x, y) {
+    const hit = document.elementFromPoint(x, y);
+    if (!hit) return null;
+    const inside = hit.closest?.(".ldfc-actions");
+    if (inside) return inside;
+    // 手指落点通常在标题上，按钮组贴在行右侧 —— 往上找到「只含一枚按钮组」的祖先。
+    // 不能用 hit.closest('[data-topic-id]')：站点把 data-topic-id 也挂在标题 <a> 上，
+    // 会当场命中链接本身（里面没有按钮组），真机上表现为「怎么按都不展开」。
+    let el = hit;
+    let best = null;
+    while (el && el !== document.body) {
+      const layers = el.querySelectorAll?.(".ldfc-actions");
+      if (!layers) break;
+      if (layers.length === 1) best = layers[0];
+      else if (layers.length > 1) break;
+      el = el.parentElement;
+    }
+    return best;
+  }
+
+  function setActive(layer) {
+    if (layer === activeLayer) return;
+    activeLayer?.classList.remove("ldfc-row-active", "ldfc-row-peek");
+    activeLayer = layer;
+    activeLayer?.classList.add("ldfc-row-active");
     clearTimeout(peekClearTimer);
-    peekTimer = 0;
     peekClearTimer = 0;
-    removePeek();
+  }
+
+  function follow() {
+    if (followRaf) return;
+    followRaf = requestAnimationFrame(() => {
+      followRaf = 0;
+      if (!lastPoint) return;
+      setActive(layerAt(lastPoint.x, lastPoint.y));
+    });
   }
 
   function armPeek() {
-    if (!lastPoint) return;
     clearTimeout(peekTimer);
     peekTimer = setTimeout(() => {
       peekTimer = 0;
-      removePeek();
-      const hit = document.elementFromPoint(lastPoint.x, lastPoint.y);
-      // 手指落点通常在标题上，按钮组贴在行右侧 —— 先回到整行，再取行内的按钮组。
-      const row = hit?.closest?.("[data-topic-id], .ldfc-topic-row");
-      const layer = row?.querySelector?.(".ldfc-actions") ?? hit?.closest?.(".ldfc-actions") ?? null;
-      if (!layer) return;
-      peekEl = layer;
-      layer.classList.add("ldfc-row-peek");
-      peekClearTimer = setTimeout(removePeek, PEEK_HOLD_MS);
+      if (!activeLayer) return;
+      activeLayer.classList.add("ldfc-row-peek");
+      clearTimeout(peekClearTimer);
+      peekClearTimer = setTimeout(() => {
+        peekClearTimer = 0;
+        activeLayer?.classList.remove("ldfc-row-peek");
+      }, PEEK_HOLD_MS);
     }, PEEK_SETTLE_MS);
   }
 
@@ -168,22 +199,32 @@
   function initPeek() {
     if (!window.matchMedia?.("(pointer: coarse)")?.matches) return;
     const track = (event) => {
-      const touch = event.touches?.[0];
+      const touch = event.touches?.[0] ?? event.changedTouches?.[0];
       if (touch) lastPoint = { x: touch.clientX, y: touch.clientY };
     };
     window.addEventListener(
       "touchstart",
       (event) => {
         track(event);
-        clearPeek();
+        removePeek();
+        if (lastPoint) setActive(layerAt(lastPoint.x, lastPoint.y));
       },
       { passive: true }
     );
-    window.addEventListener("touchmove", track, { passive: true });
+    window.addEventListener(
+      "touchmove",
+      (event) => {
+        track(event);
+        removePeek();
+        follow();
+      },
+      { passive: true }
+    );
+    window.addEventListener("touchend", armPeek, { passive: true });
     window.addEventListener(
       "scroll",
       () => {
-        clearPeek();
+        follow();
         armPeek();
       },
       { passive: true }

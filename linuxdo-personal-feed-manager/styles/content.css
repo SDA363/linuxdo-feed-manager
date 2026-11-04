@@ -558,23 +558,38 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 /* ===== 触摸设备（手机 / 平板） =====
-   移动浏览器没有可靠的 hover：列表行的操作按钮组原本只靠 :hover 显示，
-   触摸端点一下只会闪一下，等于没有入口。这里改常显：
-   - 压到 0.55 透明度，不抢标题；
-   - 默认只留图标；文字走「按下 / 滚动停下」展开，等价于桌面的移入展开；
-   - 按钮 36px 见方，斜着点也容易命中。
-   按下行或进入多选时恢复不透明，给出明确反馈。 */
+   移动浏览器没有 hover，但也不能常年把胶囊摊在列表上（用户反馈：主信息流
+   每行都挂着一枚，太吵）。这里把「手指位置」当成鼠标位置：
+   - 默认完全隐藏（opacity:0 + pointer-events:none），不占视觉、也不吃点击；
+   - 手指按下 / 滑动经过哪一行，就展开哪一行那一枚（.ldfc-row-active，0.55）；
+   - 停稳后连文字一起展开 1.6s（.ldfc-row-peek，1.0），等价于桌面的移入展开；
+   - 按钮 36px 见方，斜着点也容易命中；进入多选时整列表常显。 */
 @media (hover: none) and (pointer: coarse) {
+  /* 触摸端模拟桌面的「移入展开」：胶囊默认透明且不可点，
+     手指落在哪一行（按下 / 滑动经过 / 停稳）就展开哪一行的那一枚。
+     .ldfc-row-active（手指下）与 .ldfc-row-peek（停稳后，连文字一起展开）
+     都由 interaction/desktopActions.js 打。 */
   [data-topic-id] > .ldfc-actions,
   .ldfc-topic-row .ldfc-actions {
     display: inline-flex;
     gap: 0;
     padding: 2px;
-    opacity: 0.55;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
   }
 
-  .ldfc-topic-row:active .ldfc-actions,
-  [data-topic-id]:active > .ldfc-actions,
+  .ldfc-actions.ldfc-row-active,
+  .ldfc-actions.ldfc-row-peek,
+  .ldfc-actions.ldfc-dragging,
+  .ldfc-actions.ldfc-snap-back,
+  html.ldfc-selecting [data-topic-id] .ldfc-actions,
+  html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
+    opacity: 0.55;
+    pointer-events: auto;
+  }
+
+  .ldfc-actions.ldfc-row-peek,
   html.ldfc-selecting [data-topic-id] .ldfc-actions,
   html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
     opacity: 1;
@@ -599,11 +614,6 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
     margin-left: 6px;
     opacity: 1;
     transform: none;
-  }
-
-  [data-topic-id] > .ldfc-actions.ldfc-row-peek,
-  .ldfc-topic-row .ldfc-actions.ldfc-row-peek {
-    opacity: 1;
   }
 
   .ldfc-action-icon,
