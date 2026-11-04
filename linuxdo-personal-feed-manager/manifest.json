@@ -53,6 +53,7 @@
         "ui/snapshot.js",
         "ui/listMeta.js",
         "ui/launcher.js",
+        "ui/folders.js",
         "vendor/linuxdo-enhanced-reading.js",
         "ui/preview.js",
         "ui/poolPanel.js",

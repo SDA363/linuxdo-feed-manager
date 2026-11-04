@@ -53,6 +53,8 @@
   let sortPrefs = { ...DEFAULT_SORTS };
   let renderedPool = null;
   let renderedRecords = [];
+  // 书签文件夹筛选：null=全部，"NONE"=未分类，否则为文件夹 id（含其子树）
+  let activeFolder = null;
   const viewState = new Map();
 
   // 池内多选：长按任意一条记录进入，点记录勾选，再用标题行的「移入…」批量改归属。
@@ -398,10 +400,209 @@
     );
   }
 
+  async function applyFolderSelection(folderId) {
+    const ids = [...selection];
+    const moved = await window.LDFCFolders.assign(ids, folderId);
+    exitSelection({ rerender: false });
+    refresh();
+    const name = folderId ? folderFullPath(folderId) : "未分类";
+    window.LDFCToast?.show?.(`已把 ${moved} 个移到「${name}」`);
+  }
+
   function refresh() {
     render(window.LDFCFilter.getActivePool());
     window.LDFCNavigation.render();
     window.LDFCFilter.applyRows();
+  }
+
+  // ---- 书签文件夹 ----
+
+  function folderLabel(folderId) {
+    const names = window.LDFCFolders?.pathOf?.(folderId) ?? [];
+    return names.length ? names[names.length - 1] : "未命名";
+  }
+
+  function folderFullPath(folderId) {
+    const names = window.LDFCFolders?.pathOf?.(folderId) ?? [];
+    return names.join(" / ") || "未分类";
+  }
+
+  function folderChip(label, { active = false, title = "", onClick, onMenu } = {}) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "ldfc-folder-chip";
+    if (active) chip.classList.add("active");
+    chip.textContent = label;
+    if (title) chip.title = title;
+    if (onClick) chip.addEventListener("click", onClick);
+    if (onMenu) {
+      chip.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        onMenu(chip);
+      });
+      // 手机：长按 550ms 打开菜单（拖动滚动时会被 pointercancel 取消）
+      let timer = 0;
+      const clear = () => {
+        if (timer) clearTimeout(timer);
+        timer = 0;
+      };
+      chip.addEventListener("pointerdown", (event) => {
+        if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+        clear();
+        timer = setTimeout(() => {
+          timer = 0;
+          onMenu(chip);
+        }, 550);
+      });
+      for (const type of ["pointerup", "pointercancel", "pointerleave"]) {
+        chip.addEventListener(type, clear);
+      }
+    }
+    return chip;
+  }
+
+  let folderMenuOff = null;
+  let folderMenuOpenedAt = 0;
+
+  function closeFolderMenu() {
+    document.querySelector(".ldfc-folder-menu")?.remove();
+    if (folderMenuOff) {
+      document.removeEventListener("click", folderMenuOff, true);
+      folderMenuOff = null;
+    }
+  }
+
+  function openFolderMenu(anchor, folderId) {
+    closeFolderMenu();
+    const menu = document.createElement("div");
+    menu.className = "ldfc-folder-menu";
+
+    const item = (label, handler) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.addEventListener("click", async () => {
+        closeFolderMenu();
+        await handler();
+      });
+      menu.appendChild(button);
+    };
+
+    item("新建子文件夹", async () => {
+      const name = window.prompt("子文件夹名称");
+      if (name === null) return;
+      const result = await window.LDFCFolders.create(name, folderId);
+      if (!result.ok) window.LDFCToast?.show?.(folderErrorText(result.reason));
+    });
+    item("重命名", async () => {
+      const current = folderLabel(folderId);
+      const name = window.prompt("新的名称", current);
+      if (name === null) return;
+      const result = await window.LDFCFolders.rename(folderId, name);
+      if (!result.ok) window.LDFCToast?.show?.(folderErrorText(result.reason));
+    });
+    item("删除", async () => {
+      const names = window.LDFCFolders.pathOf(folderId);
+      const subtree = window.LDFCFolders.subtreeIds(folderId);
+      const affected = [...(window.LDFCTopicState?.records?.values?.() ?? [])].filter(
+        (record) => record.folderId && subtree.includes(record.folderId)
+      ).length;
+      const detail =
+        `确定删除「${names.join(" / ")}」？\n\n` +
+        (subtree.length > 1 ? `会同时删除其下 ${subtree.length - 1} 个子文件夹。\n` : "") +
+        (affected ? `${affected} 个书签会回到「未分类」，不会被删除。` : "其中没有书签。");
+      if (!window.confirm(detail)) return;
+      const result = await window.LDFCFolders.remove(folderId);
+      if (!result.ok) return;
+      if (activeFolder && (activeFolder === folderId || subtree.includes(activeFolder))) {
+        activeFolder = null;
+      }
+      window.LDFCToast?.show?.(
+        `已删除文件夹「${names[names.length - 1]}」`,
+        "撤销",
+        async () => {
+          await window.LDFCFolders.restore(result.removedFolders, result.affected);
+          refresh();
+        }
+      );
+      refresh();
+    });
+    // 必须挂到 body：面板在展开动画里带 transform，会变成 position:fixed 的包含块，
+    // 挂在面板里算出来的 left/top 会被面板自己的位移再叠一次（实测菜单歪到胶囊下方 230px）。
+    document.body.appendChild(menu);
+
+    const rect = anchor.getBoundingClientRect();
+    menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 180))}px`;
+    menu.style.top = `${rect.bottom + 6}px`;
+
+    // 点菜单外面关掉；点里面交给各自的按钮处理。
+    folderMenuOpenedAt = Date.now();
+    folderMenuOff = (event) => {
+      if (menu.contains(event.target)) return;
+      // 长按松手时浏览器补发的 click 会立刻把刚开出来的菜单关掉，这里放行 300ms
+      if (Date.now() - folderMenuOpenedAt < 300) return;
+      closeFolderMenu();
+    };
+    document.addEventListener("click", folderMenuOff, true);
+  }
+
+  function folderErrorText(reason) {
+    switch (reason) {
+      case "empty":
+        return "名称不能为空";
+      case "duplicate":
+        return "同一层已有同名文件夹";
+      case "too-deep":
+        return `最多 ${window.LDFCFolders?.MAX_DEPTH ?? 6} 层`;
+      case "cycle":
+        return "不能把文件夹移到它自己的子树里";
+      default:
+        return "操作失败";
+    }
+  }
+
+  function renderFolderBar(pool) {
+    const bar = document.createElement("div");
+    bar.className = "ldfc-folder-bar";
+
+    const select = (value) => {
+      activeFolder = value;
+      patchView(pool, { scrollTop: 0, count: BATCH_SIZE });
+      render(pool);
+    };
+
+    bar.appendChild(folderChip("全部", { active: !activeFolder, onClick: () => select(null) }));
+    bar.appendChild(
+      folderChip("未分类", { active: activeFolder === "NONE", onClick: () => select("NONE") })
+    );
+
+    const walk = (parentId, depth) => {
+      for (const folder of window.LDFCFolders.childrenOf(parentId)) {
+        const chip = folderChip(`${depth ? "· ".repeat(depth) : ""}${folder.name}`, {
+          active: activeFolder === folder.id,
+          title: window.LDFCFolders.pathOf(folder.id).join(" / "),
+          onClick: () => select(folder.id),
+          onMenu: (anchor) => openFolderMenu(anchor, folder.id)
+        });
+        bar.appendChild(chip);
+        walk(folder.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+
+    const add = folderChip("＋", {
+      title: "新建文件夹（长按/右键已有文件夹可建子文件夹）",
+      onClick: async () => {
+        const name = window.prompt("文件夹名称");
+        if (name === null) return;
+        const result = await window.LDFCFolders.create(name, null);
+        if (!result.ok) window.LDFCToast?.show?.(folderErrorText(result.reason));
+      }
+    });
+    add.classList.add("ldfc-folder-add");
+    bar.appendChild(add);
+
+    return bar;
   }
 
   // ---- 渲染 ----
@@ -500,7 +701,9 @@
     if (settings) settings.hidden = true;
 
     renderedPool = pool;
-    renderedRecords = recordsFor(pool);
+    renderedRecords = recordsFor(pool).filter((record) =>
+      window.LDFCFolders ? window.LDFCFolders.matches(record, activeFolder) : true
+    );
 
     panel.innerHTML = "";
 
@@ -547,6 +750,7 @@
     // 池内多选时，标题行换成「已选 N + 移入… + 完成」：进入入口仍是长按，
     // 不额外增加常驻按钮；批量目标沿用同一个 MOVE_TARGETS 胶囊行。
     let bulkTargets = null;
+    let bulkFolders = null;
     if (selecting) {
       const bulk = document.createElement("div");
       bulk.className = "ldfc-bulk";
@@ -562,13 +766,20 @@
       moveBtn.disabled = selection.size === 0;
       moveBtn.setAttribute("aria-expanded", "false");
 
+      const folderBtn = document.createElement("button");
+      folderBtn.type = "button";
+      folderBtn.className = "ldfc-bulk-folder";
+      folderBtn.textContent = "分类…";
+      folderBtn.disabled = selection.size === 0;
+      folderBtn.setAttribute("aria-expanded", "false");
+
       const done = document.createElement("button");
       done.type = "button";
       done.className = "ldfc-bulk-done";
       done.textContent = "完成";
       done.addEventListener("click", () => exitSelection());
 
-      bulk.append(countEl, moveBtn, done);
+      bulk.append(countEl, moveBtn, folderBtn, done);
       tools.append(bulk);
 
       bulkTargets = document.createElement("div");
@@ -579,21 +790,50 @@
         bulkTargets.appendChild(actionButton(target.label, () => applySelection(target)));
       }
       moveBtn.addEventListener("click", () => {
+        if (bulkFolders) bulkFolders.hidden = true;
+        folderBtn.setAttribute("aria-expanded", "false");
         bulkTargets.hidden = !bulkTargets.hidden;
         moveBtn.setAttribute("aria-expanded", String(!bulkTargets.hidden));
+      });
+
+      // 文件夹不是"移入另一个池"，是给当前选中项打分类：单独一行，避免和池胶囊混在一起。
+      bulkFolders = document.createElement("div");
+      bulkFolders.className = "ldfc-move-targets ldfc-bulk-folders";
+      bulkFolders.hidden = true;
+      bulkFolders.appendChild(folderChip("未分类", { onClick: () => applyFolderSelection(null) }));
+      const walkTargets = (parentId, depth) => {
+        for (const folder of window.LDFCFolders.childrenOf(parentId)) {
+          bulkFolders.appendChild(
+            folderChip(`${depth ? "· ".repeat(depth) : ""}${folder.name}`, {
+              title: window.LDFCFolders.pathOf(folder.id).join(" / "),
+              onClick: () => applyFolderSelection(folder.id)
+            })
+          );
+          walkTargets(folder.id, depth + 1);
+        }
+      };
+      walkTargets(null, 0);
+      folderBtn.addEventListener("click", () => {
+        bulkTargets.hidden = true;
+        moveBtn.setAttribute("aria-expanded", "false");
+        bulkFolders.hidden = !bulkFolders.hidden;
+        folderBtn.setAttribute("aria-expanded", String(!bulkFolders.hidden));
       });
     }
     tools.append(pin, close);
     header.append(title, tools);
     panel.appendChild(header);
     if (bulkTargets) panel.appendChild(bulkTargets);
+    if (bulkFolders) panel.appendChild(bulkFolders);
 
     const sortRow = renderSortRow(pool);
     if (sortRow) panel.appendChild(sortRow);
 
+    panel.appendChild(renderFolderBar(pool));
+
     if (!renderedRecords.length) {
       const empty = document.createElement("p");
-      empty.textContent = "这个信息池暂时是空的。";
+      empty.textContent = activeFolder ? "这个文件夹里还没有书签。" : "这个信息池暂时是空的。";
       panel.appendChild(empty);
       if (reopening) window.LDFCNavigation?.revealSheet?.(panel);
       return;
@@ -661,6 +901,14 @@
     },
     true
   );
+
+  // 文件夹定义变化（新建 / 重命名 / 删除 / 撤销）后重画当前面板。
+  // 面板没打开时什么都不做 —— 否则首屏一次 load() 就会把半屏面板弹出来。
+  window.addEventListener("ldfc:folders-changed", () => {
+    if (!panel || panel.hidden) return;
+    if (!renderedPool || renderedPool === "HOME") return;
+    render(renderedPool);
+  });
 
   window.LDFCPoolPanel = { create, loadSortPreference, render };
 })();

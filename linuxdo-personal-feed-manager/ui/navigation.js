@@ -736,6 +736,9 @@
       "pointerdown",
       (event) => {
         if (collapsed) return;
+        // 书签文件夹菜单挂在 body 下（要躲开面板 transform 造的包含块），
+        // 点它不算"点面板外面"，否则刚开出来的菜单会把整个面板一起关掉。
+        if (event.target instanceof Element && event.target.closest(".ldfc-folder-menu")) return;
         if (nav.contains(event.target)) return;
         pinned = false;
         close();
@@ -817,6 +820,8 @@
         if (!(target instanceof Node)) return;
         if (sheet.contains(target)) return;
         if (nav && nav.contains(target)) return;
+        // 同上：文件夹菜单是面板延伸出来的一层，点它不该关面板。
+        if (target instanceof Element && target.closest(".ldfc-folder-menu")) return;
         close();
         event.preventDefault();
         event.stopPropagation();

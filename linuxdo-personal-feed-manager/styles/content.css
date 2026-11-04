@@ -2515,3 +2515,66 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 .ldfc-pv-cat { background: #666; color: #fff; }
 .ldfc-pv-tag { background: rgba(127, 127, 127, 0.18); color: inherit; }
 .ldfc-pv-lock { font-size: 10px; opacity: 0.9; }
+
+/* 书签自定义文件夹：胶囊行 + 管理菜单 */
+.ldfc-folder-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 12px 8px;
+  scrollbar-width: none;
+}
+.ldfc-folder-bar::-webkit-scrollbar { display: none; }
+.ldfc-folder-chip {
+  flex: 0 0 auto;
+  max-width: 42vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+  /* 长按开菜单时不要把胶囊文字选成蓝色高亮（触屏长按默认会选词）。 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.ldfc-folder-chip:hover { background: rgba(255, 255, 255, 0.12); }
+.ldfc-folder-chip.active {
+  background: var(--ldfc-accent, #4f8cff);
+  border-color: transparent;
+  color: #fff;
+}
+.ldfc-folder-add { font-weight: 700; }
+.ldfc-folder-menu {
+  position: fixed;
+  /* 必须高于 #ldfc-navigation（2147483001）：菜单挂在 body 下，和面板同一层竞争。 */
+  z-index: 2147483600;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #23262b;
+  /* 挂到 body 后不再继承面板的深色文字，显式给浅色，亮色主题下也读得清。 */
+  color: #e6e6ec;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.ldfc-folder-menu button {
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ldfc-folder-menu button:hover { background: rgba(255, 255, 255, 0.1); }
+.ldfc-bulk-folders { padding-top: 6px; }

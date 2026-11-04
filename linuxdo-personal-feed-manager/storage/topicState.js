@@ -105,6 +105,20 @@
       return record;
     },
 
+    // 本地书签文件夹归属（与 basePool 正交：改文件夹不动归属）。
+    // folderId 为 null 表示「未分类」。folderUpdatedAt 供同步按条做 LWW。
+    async setFolder(topicId, folderId) {
+      const key = String(topicId);
+      const existing = this.records.get(key);
+      if (!existing) return null;
+      const next = folderId ? String(folderId) : null;
+      if ((existing.folderId ?? null) === next) return existing;
+      const record = { ...existing, folderId: next, folderUpdatedAt: Date.now() };
+      this.records.set(key, record);
+      await window.LDFCDB.putTopic(record);
+      return record;
+    },
+
     async setPool(topicId, basePool, metadata = {}) {
       const key = String(topicId);
       const now = Date.now();
@@ -138,6 +152,9 @@
         previewForRead: existing?.previewForRead ?? null,
         previewAuthor: existing?.previewAuthor ?? "",
         previewText: existing?.previewText ?? "",
+        // 书签文件夹与池归属正交：移动信息池不许把分类弄丢。
+        folderId: metadata.folderId ?? existing?.folderId ?? null,
+        folderUpdatedAt: metadata.folderUpdatedAt ?? existing?.folderUpdatedAt ?? null,
         // 站点侧的通知级别缓存（3 关注 / 2 跟踪 / 1 常规 / 0 免打扰）。
         // 当前档位只存本地；真正跨设备的是下面的「手动接管标记」。
         notifyLevel: existing?.notifyLevel ?? null,
