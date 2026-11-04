@@ -70,15 +70,21 @@
 
 > 更新时：用新包覆盖同一目录 → 在 `chrome://extensions` 点「重新加载」→ 页面 Ctrl+F5。
 
-### 油猴 / 篡改猴
+### 自己打包
 
-本仓库不提交构建产物（`dist/` 已忽略）。先本地生成：
+本仓库不提交构建产物（`dist/` 已忽略）：
 
 ```bash
-node tools/build-userscript.js   # 输出 dist/ldfc.user.js
+node tools/build-userscript.js          # dist/ldfc.user.js
+node tools/build-chrome-ext.js          # dist/linuxdo-feed-manager-chrome-<版本>.zip
+node tools/build-firefox-ext.js --zip   # dist/linuxdo-feed-manager-firefox-<版本>.zip
 ```
 
-再把 `dist/ldfc.user.js` 导入脚本管理器即可。脚本声明了
+两个 zip 的规格一致：manifest 在 ZIP 根、无外层目录。Firefox 包用于上传 AMO 签名。
+
+### 油猴 / 篡改猴
+
+先按上一节生成 `dist/ldfc.user.js`，再导入脚本管理器即可。脚本声明了
 `@grant GM_xmlhttpRequest` + `@connect *`：跨域读写 WebDAV 靠它，
 首次同步时脚本管理器会询问是否允许访问你填的网盘域名。
 
@@ -146,7 +152,7 @@ linuxdo-personal-feed-manager/   扩展源码（直接加载这个目录）
 tools/                           单测与打包脚本
 browser-lab/                     浏览器自动化验收（探针页 + mock WebDAV）
 docs/                            规格、实现状态、各轮验证报告
-dist/                            构建产物（油猴脚本 / Firefox 打包）
+dist/                            构建产物（油猴脚本 / Chrome·Firefox 扩展包）
 ```
 
 > 内部施工记录与含本机路径的文件（`AGENTS.md`、`_todo*.md`、`browser-lab/README.md`、
