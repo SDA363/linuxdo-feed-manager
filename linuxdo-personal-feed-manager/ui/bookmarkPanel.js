@@ -407,7 +407,8 @@
     const button = document.createElement("button");
     button.type = "button";
     button.id = "ldfc-bookmarks-launch";
-    button.textContent = "🔖 书签";
+    button.textContent = "书签";
+    button.dataset.navIcon = "BOOKMARK";
     button.title = "站点书签：自定义文件夹 + 一键打开";
     button.addEventListener("click", () => {
       if (panel && !panel.hidden) {

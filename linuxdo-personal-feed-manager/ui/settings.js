@@ -34,13 +34,15 @@
   // 按下固定后点外面不关，方便一边看列表一边对照设置。
   // 每次重新打开都会回到未固定（见 toggle）。
   function pinButton() {
-    const element = button("📌", () => {
+    const element = button("", () => {
       const sheet = document.getElementById("ldfc-settings");
       const pinned = sheet?.dataset.pinned === "true";
       if (sheet) sheet.dataset.pinned = String(!pinned);
       element.setAttribute("aria-pressed", String(!pinned));
       element.title = pinned ? "固定面板（点外面不会关闭）" : "已固定：点外面不会关闭";
     });
+    element.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3.5h7"/><path d="M9.8 3.5v6.1L7 14.2h10l-2.8-4.6V3.5"/><path d="M12 14.2V21"/></svg>';
     element.id = "ldfc-settings-pin";
     element.className = "ldfc-sheet-pin";
     element.title = "固定面板（点外面不会关闭）";
@@ -573,6 +575,58 @@
       notifyMapBox.appendChild(notifyMappingRow(pool, notifySettings.map?.[pool]));
     }
 
+    // ---- 外观：5 套默认主题 + 明暗三档 ----
+    const themeTitle = document.createElement("h3");
+    themeTitle.textContent = "外观";
+
+    const themePicker = document.createElement("div");
+    themePicker.className = "ldfc-theme-picker";
+    const themeButtons = [];
+    for (const theme of window.LDFCTheme?.THEMES ?? []) {
+      const item = button(theme.name, () => {
+        window.LDFCTheme?.setTheme?.(theme.id);
+        syncAppearance();
+      });
+      item.className = "ldfc-theme-swatch";
+      item.dataset.theme = theme.id;
+      item.style.setProperty("--sw-color", theme.acc);
+      item.title = `默认主题：${theme.name}`;
+      item.setAttribute("aria-label", `默认主题：${theme.name}`);
+      item.insertAdjacentHTML("afterbegin", "<i></i>");
+      themeButtons.push(item);
+      themePicker.appendChild(item);
+    }
+
+    const schemeRow = document.createElement("div");
+    schemeRow.className = "ldfc-scheme-row";
+    const schemeButtons = [];
+    for (const [mode, label] of [["auto", "跟随系统"], ["light", "浅色"], ["dark", "深色"]]) {
+      const item = button(label, () => {
+        window.LDFCTheme?.setScheme?.(mode);
+        syncAppearance();
+      });
+      item.dataset.scheme = mode;
+      schemeButtons.push(item);
+      schemeRow.appendChild(item);
+    }
+
+    const themeHint = document.createElement("p");
+    themeHint.className = "ldfc-theme-hint";
+    themeHint.textContent =
+      "默认主题只影响插件自己的悬浮球、面板与按钮；深浅色默认跟随系统（与站点同步），也可以固定为浅色 / 深色。";
+
+    function syncAppearance() {
+      const theme = window.LDFCTheme?.id ?? "a";
+      const scheme = window.LDFCTheme?.schemeMode ?? "auto";
+      for (const item of themeButtons) {
+        item.setAttribute("aria-pressed", String(item.dataset.theme === theme));
+      }
+      for (const item of schemeButtons) {
+        item.setAttribute("aria-pressed", String(item.dataset.scheme === scheme));
+      }
+    }
+    syncAppearance();
+
     const privacy = document.createElement("p");
     privacy.className = "ldfc-privacy";
     privacy.textContent =
@@ -580,6 +634,10 @@
 
     panel.append(
       panelHeader("设置与数据"),
+      themeTitle,
+      themePicker,
+      schemeRow,
+      themeHint,
       account,
       importExport,
       clearTitle,
@@ -693,7 +751,8 @@
   }
 
   function addLaunchButton() {
-    const element = button("⚙ 设置", toggle);
+    const element = button("设置", toggle);
+    element.dataset.navIcon = "SETTINGS";
     element.id = "ldfc-settings-launch";
     // 必须挂进导航的条目容器：折叠成悬浮球时整块条目区会隐藏，
     // 直接挂 nav 根节点会让设置按钮留在悬浮球外面。

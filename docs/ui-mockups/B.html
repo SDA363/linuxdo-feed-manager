@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>湖蓝 Azure · LDFC UI 效果图</title>
+<style>
+  :root{
+    --acc:#4f9dff;
+    --acc2:#2a6ad0;
+    --on-acc:#08110f;
+    --bg:#0a0b0f;
+    --panel:#14161d;
+    --panel2:#191c25;
+    --line:rgba(255,255,255,.09);
+    --text:#eef0f6;
+    --dim:#a6abbb;
+    --faint:#767c8e;
+    --sw:1.7;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    width:1480px;
+    min-height:1000px;
+    padding:30px 38px 34px;
+    background:
+      radial-gradient(940px 460px at 10% -10%, color-mix(in srgb, var(--acc) 15%, transparent), transparent 62%),
+      radial-gradient(820px 520px at 102% -6%, rgba(96,112,160,.16), transparent 58%),
+      var(--bg);
+    color:var(--text);
+    font:14px/1.45 "Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stagehead{display:flex;align-items:flex-start;justify-content:space-between;gap:30px;margin-bottom:22px}
+  .badge{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:4px 10px;border-radius:999px;
+    background:color-mix(in srgb, var(--acc) 18%, transparent);
+    border:1px solid color-mix(in srgb, var(--acc) 42%, transparent);
+    color:var(--acc);font-size:11px;font-weight:700;letter-spacing:.08em;
+  }
+  h1{margin:10px 0 4px;font-size:25px;letter-spacing:.01em}
+  .desc{margin:0;color:var(--dim);font-size:13px}
+  .meta{display:flex;align-items:center;gap:18px;margin-top:12px}
+  .sw{display:flex;align-items:center;gap:7px;color:var(--faint);font-size:11px}
+  .sw i{width:16px;height:16px;border-radius:6px;display:block;border:1px solid rgba(255,255,255,.16)}
+  .ballbox{display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:2px}
+  .ball{
+    position:relative;width:64px;height:64px;border-radius:18px;
+    display:grid;place-items:center;color:#fff;
+    background:
+      radial-gradient(120% 110% at 26% 12%, rgba(255,255,255,.5), rgba(255,255,255,0) 48%),
+      linear-gradient(152deg, var(--acc) 0%, var(--acc2) 100%);
+    box-shadow:0 16px 34px -12px color-mix(in srgb, var(--acc2) 60%, transparent),
+      inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(0,0,0,.18);
+  }
+  .ball svg{width:30px;height:30px}
+  .ball em{
+    position:absolute;top:-7px;right:-7px;min-width:21px;height:21px;padding:0 5px;
+    border-radius:999px;background:#ff4d4f;border:2px solid #0b0c10;
+    font:700 11px/17px "Segoe UI",sans-serif;font-style:normal;text-align:center;
+  }
+  .ballbox span{color:var(--faint);font-size:11px}
+
+  .cols{display:flex;gap:24px;align-items:flex-start}
+  .col{flex:0 0 auto;display:flex;flex-direction:column;gap:9px}
+  .col.nav{width:312px}
+  .col.pool{width:452px}
+  .col.set{width:452px}
+  .label{display:flex;align-items:center;gap:7px;color:var(--faint);font-size:11.5px;letter-spacing:.04em}
+  .label::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--acc);opacity:.8}
+
+  .panel{
+    position:relative;
+    border:1px solid var(--line);
+    border-radius:18px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 120px),
+      var(--panel);
+    box-shadow:0 34px 80px -46px #000, inset 0 1px 0 rgba(255,255,255,.06);
+    overflow:hidden;
+  }
+  .pad{padding:14px}
+
+  /* 图标统一：线性、圆头，尺寸 18 */
+  .ico{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:var(--sw);
+    stroke-linecap:round;stroke-linejoin:round}
+  .iw{width:22px;height:22px;display:grid;place-items:center;flex:0 0 auto}
+
+  /* ============ 一级面板 ============ */
+  .navhead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
+  .navtitle{font-size:15px;font-weight:700;letter-spacing:.02em}
+  .grip{display:flex;gap:3px;color:var(--faint)}
+  .grip i{width:3px;height:3px;border-radius:50%;background:currentColor;display:block}
+  .navrows{padding:2px 10px 12px;display:flex;flex-direction:column;gap:3px}
+  .navrow{
+    position:relative;display:flex;align-items:center;gap:10px;
+    padding:9px 9px;border-radius:10px;color:var(--dim);
+    transition:background .16s ease,color .16s ease;
+  }
+  .navrow .txt{flex:1;font-size:13.5px;font-weight:600;color:var(--text)}
+  .navrow .num{
+    min-width:30px;padding:1px 7px;border-radius:999px;text-align:center;
+    background:rgba(255,255,255,.075);color:#c9ccd8;
+    font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;
+  }
+  .navrow.active{color:var(--acc);background:color-mix(in srgb, var(--acc) 17%, transparent)}
+  .navrow.active .txt{color:#fff}
+  .navrow.active .num{background:color-mix(in srgb, var(--acc) 32%, transparent);color:#fff}
+  .navrow.active::after{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--acc)}
+
+  /* ============ 二级面板公共 ============ */
+  .sheethead{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:15px 16px 11px;margin-bottom:2px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--acc) 8%, transparent), transparent);
+  }
+  .sheethead h3{margin:0;font-size:15.5px;display:flex;align-items:center;gap:8px}
+  .sheethead h3 .dot{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 10px color-mix(in srgb, var(--acc) 70%, transparent)}
+  .headtools{display:flex;gap:7px;flex:0 0 auto}
+  .sqbtn{
+    width:29px;height:29px;padding:0;border:1px solid rgba(255,255,255,.12);
+    border-radius:9px;background:rgba(255,255,255,.07);color:#d9dce6;
+    display:grid;place-items:center;cursor:pointer;
+  }
+  .sqbtn .ico{width:15px;height:15px}
+  .sqbtn.on{background:var(--acc);border-color:transparent;color:var(--on-acc);box-shadow:0 6px 16px -8px color-mix(in srgb, var(--acc) 80%, transparent)}
+
+  .seg{display:flex;gap:6px;padding:0 16px 12px}
+  .seg span{
+    padding:5px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.1);
+    color:var(--dim);font-size:12px;font-weight:600;
+  }
+  .seg span.on{background:color-mix(in srgb, var(--acc) 20%, transparent);border-color:color-mix(in srgb, var(--acc) 48%, transparent);color:#fff}
+
+  /* 文件夹树 */
+  .tree{padding:0 12px 12px}
+  .frow{
+    display:flex;align-items:center;gap:9px;padding:9px 9px;border-radius:10px;
+    background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.05);
+    color:#e7e9f1;font-weight:600;font-size:13px;
+  }
+  .frow + .frow{margin-top:5px}
+  .frow.open{background:color-mix(in srgb, var(--acc) 14%, transparent);border-color:color-mix(in srgb, var(--acc) 30%, transparent)}
+  .frow .ico{color:var(--acc)}
+  .frow .cnt{margin-left:auto;font-size:11.5px;color:var(--faint);font-weight:600}
+  .frow .chev{width:14px;height:14px;color:var(--faint);transform:rotate(90deg)}
+  .children{padding:5px 0 2px 14px;margin-left:16px;border-left:1px dashed rgba(255,255,255,.14)}
+  .fchild{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:7px;color:var(--dim);font-size:12.5px}
+  .fchild:hover{background:rgba(255,255,255,.05)}
+  .fchild .dot2{width:5px;height:5px;border-radius:50%;background:var(--acc);opacity:.75;flex:0 0 auto}
+  .fchild .meta{margin-left:auto;color:var(--faint);font-size:11px}
+
+  .seclabel{
+    display:flex;align-items:center;gap:8px;
+    margin:12px 16px 8px;color:var(--faint);
+    font-size:11.5px;font-weight:700;letter-spacing:.04em;
+  }
+  .seclabel .ico{width:14px;height:14px;color:var(--acc)}
+  .seclabel .b{margin-left:auto;padding:1px 7px;border-radius:999px;background:color-mix(in srgb, var(--acc) 16%, transparent);color:var(--acc);font-size:10.5px}
+
+  .pitem{
+    margin:0 12px 6px;padding:10px 11px;border-radius:11px;
+    background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.055);
+    border-left:3px solid var(--acc);
+  }
+  .pitem .t{font-size:12.8px;font-weight:600;color:#f2f4f9;line-height:1.4}
+  .pitem .chips{display:flex;gap:5px;margin-top:6px;align-items:center}
+  .chip{padding:1.5px 7px;border-radius:999px;background:rgba(255,255,255,.08);color:#c5c9d6;font-size:10.5px}
+  .chip.acc{background:color-mix(in srgb, var(--acc) 22%, transparent);color:#fff}
+  .pitem .time{margin-left:auto;color:var(--faint);font-size:10.5px}
+
+  .sheetfoot{
+    display:flex;align-items:center;gap:8px;padding:11px 16px 14px;
+    border-top:1px solid rgba(255,255,255,.06);margin-top:4px;
+  }
+  .solidbtn{
+    display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;
+    background:var(--acc);color:var(--on-acc);font-size:12px;font-weight:700;
+    box-shadow:0 10px 24px -12px color-mix(in srgb, var(--acc) 90%, transparent);
+  }
+  .solidbtn .ico{width:14px;height:14px}
+  .ghostbtn{
+    display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.14);color:var(--dim);font-size:12px;font-weight:600;
+  }
+  .ghostbtn .ico{width:13px;height:13px}
+
+  /* 设置分区 */
+  .setsec{margin:0 12px 10px;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.028)}
+  .setsechead{display:flex;align-items:center;gap:9px;padding:10px 11px;background:color-mix(in srgb, var(--acc) 10%, transparent)}
+  .setsechead .iconchip{
+    width:24px;height:24px;border-radius:8px;display:grid;place-items:center;
+    background:color-mix(in srgb, var(--acc) 24%, transparent);color:var(--acc);
+  }
+  .setsechead .iconchip .ico{width:14px;height:14px}
+  .setsechead b{font-size:12.5px;letter-spacing:.02em}
+  .setsechead em{margin-left:auto;font-style:normal;font-size:10.5px;color:var(--faint)}
+  .setrow{display:flex;align-items:center;gap:10px;padding:10px 11px;font-size:12.5px;color:var(--dim);border-top:1px solid rgba(255,255,255,.05)}
+  .setrow .k{flex:1;color:#e2e5ee;font-weight:600}
+  .setrow .hint{display:block;color:var(--faint);font-size:10.8px;font-weight:400;margin-top:2px}
+  .toggle{width:38px;height:21px;border-radius:999px;background:rgba(255,255,255,.15);position:relative;flex:0 0 auto}
+  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.2s}
+  .toggle.on{background:var(--acc);box-shadow:0 0 14px -4px color-mix(in srgb, var(--acc) 80%, transparent)}
+  .toggle.on::after{left:20px}
+  .account{display:flex;align-items:center;gap:10px;padding:11px}
+  .avatar{width:34px;height:34px;border-radius:11px;background:linear-gradient(150deg,var(--acc),var(--acc2));display:grid;place-items:center;font-weight:800;color:var(--on-acc)}
+  .account .n{font-weight:700;font-size:13px}
+  .account .s{color:var(--faint);font-size:11px;display:flex;gap:6px;align-items:center}
+  .lvl{padding:0 6px;border-radius:999px;background:color-mix(in srgb, var(--acc) 20%, transparent);color:var(--acc);font-size:10px;font-weight:700}
+  .setactions{display:flex;gap:7px;flex-wrap:wrap;padding:10px 11px}
+  .setactions .ghostbtn{font-size:11.5px}
+
+  /* 底部：图标与动作胶囊 */
+  .strip{
+    margin-top:24px;display:flex;align-items:center;gap:26px;
+    padding:14px 18px;border:1px solid var(--line);border-radius:16px;
+    background:linear-gradient(180deg, rgba(255,255,255,.03), transparent), rgba(18,20,26,.7);
+  }
+  .strip .caption{color:var(--faint);font-size:11px;letter-spacing:.06em;writing-mode:horizontal-tb;min-width:96px}
+  .iconlist{display:flex;gap:16px;align-items:center}
+  .iconcell{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--faint);font-size:10.5px}
+  .iconcell .box{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.05);display:grid;place-items:center;color:#dfe3ee}
+  .iconcell .box.acc{background:var(--acc);border-color:transparent;color:var(--on-acc)}
+  .divider{width:1px;height:42px;background:rgba(255,255,255,.1)}
+  .caplist{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .cap{
+    display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;
+    border-radius:999px;border:1px solid rgba(255,255,255,.13);
+    background:rgba(16,18,24,.7);color:#d8dce6;font-size:12px;font-weight:600;
+  }
+  .cap .ico{width:14px;height:14px}
+  .cap .c{min-width:16px;padding:0 5px;border-radius:999px;background:rgba(255,255,255,.1);font-size:10.5px;text-align:center;color:#c3c7d3}
+  .cap.acc{border-color:color-mix(in srgb, var(--acc) 52%, transparent);color:var(--acc)}
+  .cap.fill{background:var(--acc);border-color:transparent;color:var(--on-acc)}
+
+  /* ================= 方案差异 ================= */
+  /* A 青瓷：左侧竖条 + 大面积浅底 */
+  .styleA .navrow.active{background:linear-gradient(90deg, color-mix(in srgb, var(--acc) 24%, transparent), transparent 88%)}
+  .styleA .setsec{background:color-mix(in srgb, var(--acc) 5%, transparent)}
+
+  /* B 湖蓝：整条胶囊填充 + 描边辉光 */
+  .styleB .navrow.active{background:var(--acc);color:#06121f}
+  .styleB .navrow.active .txt{color:#06121f}
+  .styleB .navrow.active .num{background:rgba(0,0,0,.16);color:#06121f}
+  .styleB .navrow.active::after{display:none}
+  .styleB .panel{border-color:color-mix(in srgb, var(--acc) 34%, transparent);
+    box-shadow:0 0 0 1px color-mix(in srgb, var(--acc) 16%, transparent), 0 34px 80px -46px #000,
+      inset 0 1px 0 rgba(255,255,255,.08)}
+  .styleB .sheethead{background:linear-gradient(180deg, color-mix(in srgb, var(--acc) 16%, transparent), transparent)}
+
+  /* C 琥珀石墨：更方的角 + 大写小标签 + 细下划线 */
+  .styleC .panel{border-radius:12px}
+  .styleC .navrow{border-radius:7px}
+  .styleC .seclabel{letter-spacing:.16em;text-transform:uppercase;font-size:10px;
+    border-bottom:1px solid color-mix(in srgb, var(--acc) 24%, transparent);padding-bottom:5px}
+  .styleC .frow{border-radius:7px}
+  .styleC .pitem{border-radius:7px}
+  .styleC .sqbtn{border-radius:6px}
+
+  /* D 森林青柠：图标浅色底块 */
+  .styleD .navrow .iw{background:color-mix(in srgb, var(--acc) 15%, transparent);border-radius:8px;color:var(--acc)}
+  .styleD .navrow.active .iw{background:var(--acc);color:var(--on-acc)}
+  .styleD .frow .iw{background:color-mix(in srgb, var(--acc) 14%, transparent);border-radius:7px}
+  .styleD .setsechead .iconchip{background:var(--acc);color:var(--on-acc)}
+
+  /* E 珊瑚：顶部渐变条 + 加粗图标 */
+  .styleE{--sw:2.1}
+  .styleE .panel::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;z-index:2;
+    background:linear-gradient(90deg, var(--acc), color-mix(in srgb, var(--acc2) 70%, transparent) 60%, transparent)}
+  .styleE .sheethead{padding-top:18px}
+  .styleE .pitem{border-left-width:4px}
+</style>
+</head>
+<body class="styleB">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-feed" viewBox="0 0 24 24"><path d="M4.5 7h11.5"/><path d="M4.5 12h8.5"/><path d="M4.5 17h6.5"/><circle cx="18.6" cy="17" r="1.7"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.8l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.82 6.9 19.5l.97-5.68L3.75 9.8l5.7-.83z"/></symbol>
+    <symbol id="i-msg" viewBox="0 0 24 24"><path d="M20 5H4v11h5v4l5-4h6z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5l4.8 4.8L19.8 6.8"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3z"/><path d="M12 13v7"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2h9v9.5h-17z"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4.5 4.5h6.6l8.4 8.4-6.6 6.6-8.4-8.4z"/><circle cx="8.4" cy="8.4" r="1.2"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M19 14v6H4V5h6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.4"/><path d="M4.8 20c.7-3.6 3.6-5.5 7.2-5.5s6.5 1.9 7.2 5.5"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9a4 4 0 017-2.6A4 4 0 0119 11c0 4.6-7 9-7 9z"/></symbol>
+    <symbol id="i-reply" viewBox="0 0 24 24"><path d="M20 15H9l-5 4V6h16z"/></symbol>
+    <symbol id="i-boost" viewBox="0 0 24 24"><path d="M5 9h11l-3-3"/><path d="M19 15H8l3 3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M4 19h16"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V5"/><path d="M8 9l4-4 4 4"/><path d="M4 19h16"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M19 12a7 7 0 01-11.6 5.2"/><path d="M5 12a7 7 0 0111.6-5.2"/><path d="M16 3.5v3.6h-3.6M8 20.5v-3.6h3.6"/></symbol>
+  </defs>
+</svg>
+
+<div class="stagehead">
+  <div>
+    <div class="badge">方案 B</div>
+    <h1>湖蓝 Azure</h1>
+    <p class="desc">湖蓝 + 渐变描边；一级面板选中态整条胶囊填充，辨识度最高。</p>
+    <div class="meta">
+      <div class="sw"><i style="background:#4f9dff"></i>主色 #4f9dff</div>
+      <div class="sw"><i style="background:#2a6ad0"></i>深色 #2a6ad0</div>
+      <div class="sw"><i style="background:#14161d"></i>面板 #14161d</div>
+      <div class="sw"><i style="background:#0a0b0f"></i>底色 #0a0b0f</div>
+    </div>
+  </div>
+  <div class="ballbox">
+    <div class="ball"><svg class="ico" style="width:29px;height:29px;stroke-width:1.8"><use href="#i-feed"/></svg><em>12</em></div>
+    <span>悬浮球（无紫色）</span>
+  </div>
+</div>
+
+<div class="cols">
+  <!-- 一级面板 -->
+  <div class="col nav">
+    <div class="label">一级面板 · 悬浮球展开</div>
+    <div class="panel">
+      <div class="navhead">
+        <span class="navtitle">LDFC 信息池</span>
+        <span class="grip"><i></i><i></i><i></i></span>
+      </div>
+      <div class="navrows">
+        <div class="navrow active"><span class="iw"><svg class="ico"><use href="#i-feed"/></svg></span><span class="txt">主信息流</span><span class="num">128</span></div>
+        <div class="navrow"><span class="iw"><svg class="ico"><use href="#i-star"/></svg></span><span class="txt">感兴趣</span><span class="num">42</span></div>
+        <div class="navrow"><span class="iw"><svg class="ico"><use href="#i-msg"/></svg></span><span class="txt">新回复</span><span class="num">7</span></div>
+        <div class="navrow"><span class="iw"><svg class="ico"><use href="#i-check"/></svg></span><span class="txt">已读</span><span class="num">316</span></div>
+        <div class="navrow"><span class="iw"><svg class="ico"><use href="#i-x"/></svg></span><span class="txt">不感兴趣</span><span class="num">23</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 二级面板：信息池 + 文件夹 -->
+  <div class="col pool">
+    <div class="label">二级面板 · 信息池 / 文件夹</div>
+    <div class="panel">
+      <div class="sheethead">
+        <h3><span class="dot"></span>感兴趣</h3>
+        <div class="headtools">
+          <span class="sqbtn on" title="已固定"><svg class="ico"><use href="#i-pin"/></svg></span>
+          <span class="sqbtn" title="关闭"><svg class="ico"><use href="#i-x"/></svg></span>
+        </div>
+      </div>
+      <div class="seg"><span class="on">全部 42</span><span>文件夹</span><span>站点书签</span></div>
+      <div class="tree">
+        <div class="frow open"><span class="iw"><svg class="ico"><use href="#i-folder"/></svg></span><span>签到公益站</span><span class="cnt">8</span><svg class="ico chev"><use href="#i-chev"/></svg></div>
+        <div class="children">
+          <div class="fchild"><span class="dot2"></span>Google 账号<span class="meta">3 天前</span></div>
+          <div class="fchild"><span class="dot2"></span>Oracle 免费机<span class="meta">昨天</span></div>
+          <div class="fchild"><span class="dot2"></span>Kiro 额度<span class="meta">10-31</span></div>
+        </div>
+        <div class="frow"><span class="iw"><svg class="ico"><use href="#i-folder"/></svg></span><span>待读长文</span><span class="cnt">14</span><svg class="ico chev"><use href="#i-chev"/></svg></div>
+      </div>
+      <div class="seclabel"><svg class="ico"><use href="#i-tag"/></svg>站点书签<span class="b">12</span></div>
+      <div class="pitem">
+        <div class="t">Claude 5x max 用 opus 5.5 被降智了咋整</div>
+        <div class="chips"><span class="chip acc">开发调优</span><span class="chip">纯水</span><span class="time">2 小时前</span></div>
+      </div>
+      <div class="sheetfoot">
+        <span class="solidbtn"><svg class="ico"><use href="#i-open"/></svg>一键打开 8 个</span>
+        <span class="ghostbtn"><svg class="ico"><use href="#i-bookmark"/></svg>收藏</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 二级面板：设置 -->
+  <div class="col set">
+    <div class="label">二级面板 · 设置</div>
+    <div class="panel">
+      <div class="sheethead">
+        <h3><span class="dot"></span>设置</h3>
+        <div class="headtools">
+          <span class="sqbtn on" title="已固定"><svg class="ico"><use href="#i-pin"/></svg></span>
+          <span class="sqbtn" title="关闭"><svg class="ico"><use href="#i-x"/></svg></span>
+        </div>
+      </div>
+
+      <div class="setsec">
+        <div class="setsechead"><span class="iconchip"><svg class="ico"><use href="#i-user"/></svg></span><b>账号</b><em>本地登录</em></div>
+        <div class="account">
+          <div class="avatar">L</div>
+          <div><div class="n">dsfg</div><div class="s"><span class="lvl">Lv3</span> linux.do · 已登录</div></div>
+        </div>
+      </div>
+
+      <div class="setsec">
+        <div class="setsechead"><span class="iconchip"><svg class="ico"><use href="#i-gear"/></svg></span><b>阅读体验</b><em>预览窗</em></div>
+        <div class="setrow"><span class="k">悬停预取<span class="hint">停在同一行 120ms 才取，减少请求</span></span><span class="toggle"></span></div>
+        <div class="setrow"><span class="k">动作全搬<span class="hint">底排五枚隐藏，改到工具排下方</span></span><span class="toggle on"></span></div>
+        <div class="setrow"><span class="k">预览窗只用只看楼主<span class="hint">打开时补全楼主楼层</span></span><span class="toggle"></span></div>
+      </div>
+
+      <div class="setsec">
+        <div class="setsechead"><span class="iconchip"><svg class="ico"><use href="#i-sync"/></svg></span><b>数据</b><em>本地 / WebDAV</em></div>
+        <div class="setactions">
+          <span class="ghostbtn"><svg class="ico"><use href="#i-download"/></svg>导出</span>
+          <span class="ghostbtn"><svg class="ico"><use href="#i-upload"/></svg>导入</span>
+          <span class="ghostbtn"><svg class="ico"><use href="#i-sync"/></svg>云同步</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="strip">
+  <div class="caption">图标替换 · 不再用 emoji</div>
+  <div class="iconlist">
+    <div class="iconcell"><span class="box"><svg class="ico"><use href="#i-pin"/></svg></span>固定</div>
+    <div class="iconcell"><span class="box acc"><svg class="ico"><use href="#i-pin"/></svg></span>已固定</div>
+    <div class="iconcell"><span class="box"><svg class="ico"><use href="#i-x"/></svg></span>关闭</div>
+    <div class="iconcell"><span class="box"><svg class="ico"><use href="#i-folder"/></svg></span>文件夹</div>
+    <div class="iconcell"><span class="box"><svg class="ico"><use href="#i-tag"/></svg></span>标签</div>
+  </div>
+  <div class="divider"></div>
+  <div class="caplist">
+    <span class="cap"><svg class="ico"><use href="#i-heart"/></svg>赞<span class="c">12</span></span>
+    <span class="cap"><svg class="ico"><use href="#i-reply"/></svg>回复<span class="c">34</span></span>
+    <span class="cap"><svg class="ico"><use href="#i-boost"/></svg>boost</span>
+    <span class="cap"><svg class="ico"><use href="#i-bookmark"/></svg>书签</span>
+    <span class="cap acc"><svg class="ico"><use href="#i-open"/></svg>打开原帖</span>
+  </div>
+</div>
+</body>
+</html>

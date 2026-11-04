@@ -30,6 +30,7 @@
         "storage/migration.js",
         "site/identity.js",
         "storage/db.js",
+        "ui/theme.js",
         "storage/topicState.js",
         "storage/syncModel.js",
         "storage/syncService.js",

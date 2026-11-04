@@ -31,20 +31,20 @@
   };
 
   const POOL_TITLES = {
-    NEW_REPLY: "💬 新回复",
-    INTERESTED: "⭐ 感兴趣",
-    READ: "✓ 已读",
-    DISMISSED: "× 不感兴趣"
+    NEW_REPLY: "新回复",
+    INTERESTED: "感兴趣",
+    READ: "已读",
+    DISMISSED: "不感兴趣"
   };
 
   // 「移入…」的目标。HOME 也列出来：从历史池回到主信息流是最常用的一步，
   // 和下面的「移回主信息流」重复也没关系 —— 一个在快捷位、一个在展开菜单里。
   const MOVE_TARGETS = [
-    { pool: "HOME", label: "🏠 主信息流", name: "主信息流" },
-    { pool: "INTERESTED", label: "⭐ 感兴趣", name: "感兴趣" },
-    { pool: "READ", label: "✓ 已读", name: "已读" },
-    { pool: "NEW_REPLY", label: "💬 新回复", name: "新回复" },
-    { pool: "DISMISSED", label: "× 不感兴趣", name: "不感兴趣" }
+    { pool: "HOME", label: "主信息流", name: "主信息流" },
+    { pool: "INTERESTED", label: "感兴趣", name: "感兴趣" },
+    { pool: "READ", label: "已读", name: "已读" },
+    { pool: "NEW_REPLY", label: "新回复", name: "新回复" },
+    { pool: "DISMISSED", label: "不感兴趣", name: "不感兴趣" }
   ];
 
   let panel;
@@ -226,7 +226,7 @@
       // 真实站点上"未读数量未知"是可能的（列表接口的字段可能是 null），
       // 这时宁可不显示数字，也不要编一个出来。
       const unread = record.unreadPosts ?? window.LDFCTrackingState?.unreadFor?.(record.topicId) ?? null;
-      count.textContent = unread === null ? "💬 新回复" : `💬 新回复 ${unread}`;
+      count.textContent = unread === null ? "新回复" : `新回复 ${unread}`;
       header.appendChild(count);
     }
 
@@ -283,7 +283,7 @@
 
     // 不感兴趣区里再给一个"× 不感兴趣"没有意义，只保留恢复入口。
     if (pool !== "DISMISSED") {
-      actions.appendChild(actionButton("× 不感兴趣", async () => {
+      actions.appendChild(actionButton("不感兴趣", async () => {
         await window.LDFCPoolManager.dismissFromAnyPool(record.topicId, record);
         refresh();
         window.LDFCToast.show("已移入“不感兴趣”", "撤销", async () => {
@@ -675,7 +675,7 @@
     pin.type = "button";
     pin.id = "ldfc-panel-pin";
     pin.className = "ldfc-sheet-pin";
-    pin.textContent = "📌";
+    pin.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3.5h7"/><path d="M9.8 3.5v6.1L7 14.2h10l-2.8-4.6V3.5"/><path d="M12 14.2V21"/></svg>';
     pin.title = "固定面板（点外面不会关闭）";
     pin.setAttribute("aria-label", "固定面板");
     pin.setAttribute("aria-pressed", String(panel.dataset.pinned === "true"));

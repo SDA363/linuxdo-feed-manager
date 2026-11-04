@@ -7,6 +7,65 @@
 
    z-index 必须高于第三方预览弹窗（.ldp-overlay 用 2147483000），
    否则在弹窗里打开的面板会被整个盖住。 */
+
+/* ===== 主题令牌 =====
+   5 套主色 × 深浅两套表面。所有颜色都从这里取，
+   这样换主题 / 跟随系统深浅色时不用改具体组件。 */
+:root {
+  --ldfc-acc: #38c6b4;
+  --ldfc-acc2: #1e9086;
+  --ldfc-on-acc: #04211e;
+  --ldfc-panel-bg: rgba(18, 18, 22, 0.94);
+  --ldfc-panel-solid: #14161d;
+  --ldfc-panel-2: #191c25;
+  --ldfc-glass: rgba(18, 18, 22, 0.72);
+  --ldfc-line: rgba(255, 255, 255, 0.1);
+  --ldfc-line-soft: rgba(255, 255, 255, 0.07);
+  --ldfc-text: #eeeeee;
+  --ldfc-text-strong: #ffffff;
+  --ldfc-dim: #a6abbb;
+  --ldfc-chip: rgba(255, 255, 255, 0.08);
+  --ldfc-chip-text: #cfd0d8;
+  --ldfc-hover: rgba(255, 255, 255, 0.1);
+  --ldfc-acc-text: var(--ldfc-acc);
+}
+html[data-ldfc-theme="a"] { --ldfc-acc: #38c6b4; --ldfc-acc2: #1e9086; --ldfc-on-acc: #04211e; }
+html[data-ldfc-theme="b"] { --ldfc-acc: #4f9dff; --ldfc-acc2: #2a6ad0; --ldfc-on-acc: #04121f; }
+html[data-ldfc-theme="c"] { --ldfc-acc: #eaa33c; --ldfc-acc2: #a86a19; --ldfc-on-acc: #1d1206; }
+html[data-ldfc-theme="d"] { --ldfc-acc: #5fd08c; --ldfc-acc2: #26995c; --ldfc-on-acc: #04200f; }
+html[data-ldfc-theme="e"] { --ldfc-acc: #ff8173; --ldfc-acc2: #cf4436; --ldfc-on-acc: #220906; }
+
+html[data-ldfc-scheme="dark"] {
+  --ldfc-panel-bg: rgba(18, 18, 22, 0.94);
+  --ldfc-panel-solid: #14161d;
+  --ldfc-panel-2: #191c25;
+  --ldfc-glass: rgba(18, 18, 22, 0.72);
+  --ldfc-line: rgba(255, 255, 255, 0.1);
+  --ldfc-line-soft: rgba(255, 255, 255, 0.07);
+  --ldfc-text: #eeeeee;
+  --ldfc-text-strong: #ffffff;
+  --ldfc-dim: #a6abbb;
+  --ldfc-chip: rgba(255, 255, 255, 0.08);
+  --ldfc-chip-text: #cfd0d8;
+  --ldfc-hover: rgba(255, 255, 255, 0.1);
+  --ldfc-acc-text: var(--ldfc-acc);
+}
+html[data-ldfc-scheme="light"] {
+  --ldfc-panel-bg: rgba(255, 255, 255, 0.96);
+  --ldfc-panel-solid: #ffffff;
+  --ldfc-panel-2: #f5f6f9;
+  --ldfc-glass: rgba(255, 255, 255, 0.86);
+  --ldfc-line: rgba(17, 22, 34, 0.12);
+  --ldfc-line-soft: rgba(17, 22, 34, 0.08);
+  --ldfc-text: #1d2230;
+  --ldfc-text-strong: #0d111c;
+  --ldfc-dim: #596070;
+  --ldfc-chip: rgba(17, 22, 34, 0.06);
+  --ldfc-chip-text: #3c4354;
+  --ldfc-hover: rgba(17, 22, 34, 0.06);
+  --ldfc-acc-text: var(--ldfc-acc2);
+}
+
 #ldfc-navigation {
   position: fixed;
   left: 16px;
@@ -43,9 +102,9 @@
   color: #fff;
   background:
     radial-gradient(115% 110% at 26% 14%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
-    linear-gradient(155deg, #7c8bf3 0%, #9b7bf0 48%, #61b6df 100%);
+    linear-gradient(155deg, var(--ldfc-acc) 0%, var(--ldfc-acc2) 100%);
   box-shadow:
-    0 12px 26px -8px rgba(60, 48, 150, 0.6),
+    0 12px 26px -8px color-mix(in srgb, var(--ldfc-acc2) 55%, transparent),
     0 3px 9px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.6),
     inset 0 -1px 0 rgba(0, 0, 0, 0.1);
@@ -82,7 +141,7 @@
   transform: translateY(-1px) scale(1.05);
   filter: brightness(1.04) saturate(1.06);
   box-shadow:
-    0 16px 32px -8px rgba(60, 48, 150, 0.62),
+    0 16px 32px -8px color-mix(in srgb, var(--ldfc-acc2) 58%, transparent),
     0 4px 12px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 0 rgba(0, 0, 0, 0.1);
@@ -137,9 +196,9 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.11);
+  border: 1px solid var(--ldfc-line);
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(38, 38, 45, 0.94), rgba(17, 17, 21, 0.96));
+  background: var(--ldfc-panel-bg);
   box-shadow:
     0 28px 60px -18px rgba(0, 0, 0, 0.66),
     0 8px 20px rgba(0, 0, 0, 0.3),
@@ -159,7 +218,7 @@
   transform: scale(var(--ldfc-panel-sx, 0.27), var(--ldfc-panel-sy, 0.2));
   border-radius: var(--ldfc-panel-icon-radius, 15px);
   box-shadow:
-    0 12px 26px -8px rgba(60, 48, 150, 0.6),
+    0 12px 26px -8px color-mix(in srgb, var(--ldfc-acc2) 55%, transparent),
     0 3px 9px rgba(0, 0, 0, 0.22);
   pointer-events: none;
   transition:
@@ -178,7 +237,7 @@
   border-radius: inherit;
   background:
     radial-gradient(115% 110% at 26% 14%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
-    linear-gradient(155deg, #7c8bf3 0%, #9b7bf0 48%, #61b6df 100%);
+    linear-gradient(155deg, var(--ldfc-acc) 0%, var(--ldfc-acc2) 100%);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--ldfc-nav-dur-fast, 360ms) cubic-bezier(0.32, 0.72, 0, 1);
@@ -239,12 +298,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   padding: 8px 10px;
   border: 0;
   border-radius: 11px;
-  color: #eee;
+  color: var(--ldfc-text);
   background: transparent;
   font-size: 13px;
   line-height: 1.35;
@@ -261,25 +320,25 @@
 }
 
 #ldfc-navigation .ldfc-nav-items button.active {
-  color: #fff;
-  background: rgba(126, 140, 240, 0.22);
-  box-shadow: inset 2px 0 0 #8c9bf5;
+  color: var(--ldfc-text-strong);
+  background: color-mix(in srgb, var(--ldfc-acc) 22%, transparent);
+  box-shadow: inset 2px 0 0 var(--ldfc-acc);
 }
 
-#ldfc-navigation .ldfc-nav-items button > span {
+#ldfc-navigation .ldfc-nav-items .ldfc-nav-count {
   min-width: 28px;
   padding: 1px 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #cfd0d8;
+  background: var(--ldfc-chip);
+  color: var(--ldfc-chip-text);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-#ldfc-navigation .ldfc-nav-items button.active > span {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+#ldfc-navigation .ldfc-nav-items button.active .ldfc-nav-count {
+  background: color-mix(in srgb, var(--ldfc-acc) 38%, transparent);
+  color: var(--ldfc-text-strong);
 }
 
 /* 收起以后仍然显示新回复数量，否则用户看不出核心功能有没有新内容 */
@@ -385,13 +444,13 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 /* 被选中的行：整行淡紫底 + 内描边。
    表格行（推荐 / 相关）的单元格要单独上色，否则底色看不出来。 */
 .ldfc-selected {
-  box-shadow: inset 0 0 0 2px rgba(140, 155, 245, 0.85);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ldfc-acc) 85%, transparent);
   border-radius: 10px;
 }
 
 .ldfc-selected,
 .ldfc-selected > td {
-  background: rgba(126, 140, 240, 0.14);
+  background: color-mix(in srgb, var(--ldfc-acc) 14%, transparent);
 }
 
 /* 长按成功的那一下：整组按钮抖一次，作为"已进入多选"的确认。
@@ -429,12 +488,12 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   transform: translateX(-50%);
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(126, 140, 240, 0.95);
-  color: #fff;
+  background: color-mix(in srgb, var(--ldfc-acc) 95%, transparent);
+  color: var(--ldfc-on-acc);
   font: 600 11px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 6px 16px -6px rgba(60, 48, 150, 0.8);
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--ldfc-acc2) 55%, transparent);
 }
 
 .ldfc-swipe-right {
@@ -671,8 +730,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   align-items: center;
   padding: 10px 14px;
   border-radius: 8px;
-  color: #fff;
-  background: rgba(24, 24, 27, 0.96);
+  color: var(--ldfc-text-strong);
+  background: var(--ldfc-panel-solid);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
@@ -697,9 +756,9 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   overflow: auto;
   padding: 16px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #eee;
-  background: rgba(18, 18, 22, 0.94);
+  border: 1px solid var(--ldfc-line);
+  color: var(--ldfc-text);
+  background: var(--ldfc-panel-bg);
   box-shadow:
     0 30px 70px -30px rgba(0, 0, 0, 0.8),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -720,7 +779,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 #ldfc-settings::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--ldfc-hover);
   background-clip: content-box;
 }
 
@@ -760,8 +819,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 0;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #eee;
+  background: var(--ldfc-chip);
+  color: var(--ldfc-text);
   font: 400 18px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
   cursor: pointer;
   transition:
@@ -770,7 +829,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 .ldfc-panel-close:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--ldfc-hover);
 }
 
 .ldfc-panel-close:active {
@@ -789,7 +848,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   z-index: 4;
   margin: -16px -16px 12px;
   padding: 16px 16px 10px;
-  background: rgba(18, 18, 22, 0.98);
+  background: var(--ldfc-panel-solid);
 }
 
 .ldfc-sheet-tools {
@@ -807,8 +866,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 0;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #eee;
+  background: var(--ldfc-chip);
+  color: var(--ldfc-text);
   font: 400 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
   cursor: pointer;
   transition:
@@ -817,12 +876,12 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 .ldfc-sheet-pin:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--ldfc-hover);
 }
 
 .ldfc-sheet-pin[aria-pressed="true"] {
-  background: rgba(126, 140, 240, 0.92);
-  color: #fff;
+  background: var(--ldfc-acc);
+  color: var(--ldfc-on-acc);
 }
 
 .ldfc-sheet-pin:active {
@@ -837,17 +896,17 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 
 .ldfc-panel-item {
   padding: 12px 12px 11px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--ldfc-line-soft);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--ldfc-chip);
   transition:
     background 200ms cubic-bezier(0.32, 0.72, 0, 1),
     border-color 200ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .ldfc-panel-item:hover {
-  background: rgba(255, 255, 255, 0.085);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: var(--ldfc-hover);
+  border-color: var(--ldfc-line);
 }
 
 .ldfc-panel-item-header {
@@ -858,7 +917,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 .ldfc-panel-title {
-  color: #fff;
+  color: var(--ldfc-text-strong);
   font-weight: 600;
   font-size: 13.5px;
   line-height: 1.45;
@@ -877,7 +936,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 1px 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
-  color: #e9e9f0;
+  color: var(--ldfc-text);
   font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -896,7 +955,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   background: transparent;
-  color: #dcdce4;
+  color: var(--ldfc-dim);
   font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
   cursor: pointer;
   transition:
@@ -935,7 +994,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   background: transparent;
-  color: #dcdce4;
+  color: var(--ldfc-dim);
   font: 600 11.5px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
   cursor: pointer;
   transition:
@@ -1164,9 +1223,9 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 /* .ldfc-selected 的通用样式在 .ldfc-panel-item 之前定义，同权重会被后者盖掉，
    这里用双类名提权，保证面板里的选中态可见。 */
 .ldfc-panel-item.ldfc-selected {
-  background: rgba(126, 140, 240, 0.18);
-  border-color: rgba(140, 155, 245, 0.6);
-  box-shadow: inset 0 0 0 1px rgba(140, 155, 245, 0.8);
+  background: color-mix(in srgb, var(--ldfc-acc) 18%, transparent);
+  border-color: color-mix(in srgb, var(--ldfc-acc) 60%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ldfc-acc) 80%, transparent);
 }
 
 .ldfc-bulk {
@@ -1178,7 +1237,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 
 .ldfc-bulk-count {
   font-size: 12px;
-  color: #dcdce4;
+  color: var(--ldfc-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1188,7 +1247,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   background: transparent;
-  color: #dcdce4;
+  color: var(--ldfc-dim);
   font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
   cursor: pointer;
   transition:
@@ -1247,7 +1306,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 
 .ldfc-panel-excerpt {
   margin: 8px 0 0;
-  color: #ddd;
+  color: var(--ldfc-text);
   font-size: 13px;
   line-height: 1.45;
   display: -webkit-box;
@@ -1266,13 +1325,13 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 6px;
-  color: #a9a9b3;
+  color: var(--ldfc-dim);
   font-size: 12px;
 }
 
 .ldfc-panel-footer {
   margin: 12px 0 0;
-  color: #8f8f99;
+  color: var(--ldfc-dim);
   font-size: 12px;
   text-align: center;
 }
@@ -1282,7 +1341,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: #a9a9b6;
+  color: var(--ldfc-dim);
 }
 
 #ldfc-settings .ldfc-settings-header {
@@ -1313,12 +1372,12 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 #ldfc-settings .ldfc-settings-close:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--ldfc-hover);
 }
 
 .ldfc-account {
   margin: 0 0 14px;
-  color: #bbb;
+  color: var(--ldfc-dim);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -1334,9 +1393,9 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   overflow: auto;
   padding: 16px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #eee;
-  background: rgba(18, 18, 22, 0.95);
+  border: 1px solid var(--ldfc-line);
+  color: var(--ldfc-text);
+  background: var(--ldfc-panel-bg);
   box-shadow:
     0 30px 70px -30px rgba(0, 0, 0, 0.8),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -1440,7 +1499,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 
 .ldfc-privacy {
   margin-top: 14px;
-  color: #bbb;
+  color: var(--ldfc-dim);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -1538,7 +1597,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   align-items: flex-start;
   gap: 6px;
   margin: 0 0 12px;
-  color: #ddd;
+  color: var(--ldfc-text);
   font-size: 12px;
   line-height: 1.4;
   cursor: pointer;
@@ -1549,7 +1608,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   width: 14px;
   height: 14px;
   margin: 1px 0 0;
-  accent-color: #7aa7ff;
+  accent-color: var(--ldfc-acc);
   cursor: pointer;
 }
 
@@ -1607,7 +1666,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 
 .ldfc-sync-status {
   margin: 6px 0 0;
-  color: #bbb;
+  color: var(--ldfc-dim);
   font-size: 12px;
   line-height: 1.5;
   word-break: break-word;
@@ -1885,7 +1944,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
-  color: #ddd;
+  color: var(--ldfc-text);
   font-size: 13px;
   line-height: 1.5;
   cursor: pointer;
@@ -1906,7 +1965,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
-  color: #ddd;
+  color: var(--ldfc-text);
   font-size: 12px;
 }
 
@@ -1919,7 +1978,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   flex: 1;
   min-width: 0;
   height: 18px;
-  accent-color: #7aa7ff;
+  accent-color: var(--ldfc-acc);
 }
 
 .ldfc-anim-speed output {
@@ -1939,7 +1998,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
-  color: #ddd;
+  color: var(--ldfc-text);
   font-size: 12px;
 }
 
@@ -2045,7 +2104,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #d7d7df;
+  color: var(--ldfc-text);
   font: inherit;
   text-align: left;
   white-space: normal;
@@ -2153,7 +2212,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   justify-content: space-between;
   gap: 12px;
   font-size: 13px;
-  color: #d7d7df;
+  color: var(--ldfc-text);
 }
 
 .ldfc-notify-map select {
@@ -2161,8 +2220,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 4px 8px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
-  background: rgba(18, 18, 22, 0.72);
-  color: #e6e6ee;
+  background: var(--ldfc-glass);
+  color: var(--ldfc-text);
   font-size: 13px;
 }
 
@@ -2201,8 +2260,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 18px 18px 16px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 16px;
-  background: rgba(18, 18, 22, 0.94);
-  color: #e6e6ee;
+  background: var(--ldfc-panel-bg);
+  color: var(--ldfc-text);
   font-size: 13px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
   transform: translateY(8px) scale(0.98);
@@ -2230,7 +2289,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: none;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
-  color: #e6e6ee;
+  color: var(--ldfc-text);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
@@ -2267,7 +2326,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
-  color: #e6e6ee;
+  color: var(--ldfc-text);
   font-size: 12px;
   cursor: pointer;
 }
@@ -2313,8 +2372,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 4px 8px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
-  background: rgba(18, 18, 22, 0.72);
-  color: #e6e6ee;
+  background: var(--ldfc-glass);
+  color: var(--ldfc-text);
   font-size: 12px;
 }
 
@@ -2334,8 +2393,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 8px 18px;
   border: none;
   border-radius: 10px;
-  background: #4f7cff;
-  color: #fff;
+  background: var(--ldfc-acc);
+  color: var(--ldfc-on-acc);
   font-size: 13px;
   cursor: pointer;
 }
@@ -2352,7 +2411,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 16px;
-  background: rgba(18, 18, 22, 0.96);
+  background: var(--ldfc-panel-bg);
   transform: translateY(8px) scale(0.98);
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -2381,7 +2440,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
-  color: #e6e6ee;
+  color: var(--ldfc-text);
   font-size: 13px;
   cursor: pointer;
 }
@@ -2546,8 +2605,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   white-space: nowrap;
   padding: 5px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--ldfc-line);
+  background: var(--ldfc-chip);
   color: inherit;
   font-size: 12px;
   line-height: 1.2;
@@ -2557,9 +2616,9 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   user-select: none;
   -webkit-touch-callout: none;
 }
-.ldfc-folder-chip:hover { background: rgba(255, 255, 255, 0.12); }
+.ldfc-folder-chip:hover { background: var(--ldfc-hover); }
 .ldfc-folder-chip.active {
-  background: var(--ldfc-accent, #4f8cff);
+  background: var(--ldfc-acc);
   border-color: transparent;
   color: #fff;
 }
@@ -2573,9 +2632,9 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   min-width: 160px;
   padding: 4px;
   border-radius: 10px;
-  background: #23262b;
-  /* 挂到 body 后不再继承面板的深色文字，显式给浅色，亮色主题下也读得清。 */
-  color: #e6e6ec;
+  background: var(--ldfc-panel-solid);
+  /* 挂到 body 后不再继承面板文字色，显式给主题文字色。 */
+  color: var(--ldfc-text);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 .ldfc-folder-menu button {
@@ -2588,7 +2647,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   font-size: 13px;
   cursor: pointer;
 }
-.ldfc-folder-menu button:hover { background: rgba(255, 255, 255, 0.1); }
+.ldfc-folder-menu button:hover { background: var(--ldfc-hover); }
 .ldfc-bulk-folders { padding-top: 6px; }
 
 /* ===== 站点书签面板（ui/bookmarkPanel.js） =====
@@ -2635,7 +2694,7 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
-  color: #d7d7df;
+  color: var(--ldfc-text);
   font-size: 12px;
   line-height: 1.4;
   cursor: pointer;
@@ -2665,3 +2724,167 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   font-size: 12px;
   cursor: pointer;
 }
+
+/* 一级面板：线性图标 + 名称 + 计数 */
+#ldfc-navigation .ldfc-nav-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.92;
+}
+#ldfc-navigation .ldfc-nav-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+#ldfc-navigation .ldfc-nav-items button.active .ldfc-nav-icon { opacity: 1; }
+
+/* 设置里的外观选择：5 个主题胶囊 + 明暗三档 */
+.ldfc-theme-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.ldfc-theme-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border: 1px solid var(--ldfc-line);
+  border-radius: 999px;
+  background: var(--ldfc-chip);
+  color: var(--ldfc-text);
+  font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.ldfc-theme-swatch i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--sw-color, var(--ldfc-acc));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+.ldfc-theme-swatch:hover { background: var(--ldfc-hover); }
+.ldfc-theme-swatch[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--sw-color, var(--ldfc-acc)) 70%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sw-color, var(--ldfc-acc)) 28%, transparent);
+}
+.ldfc-scheme-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+.ldfc-scheme-row button {
+  padding: 5px 11px;
+  border: 1px solid var(--ldfc-line);
+  border-radius: 999px;
+  background: var(--ldfc-chip);
+  color: var(--ldfc-text);
+  font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.ldfc-scheme-row button:hover { background: var(--ldfc-hover); }
+.ldfc-scheme-row button[aria-pressed="true"] {
+  background: var(--ldfc-acc);
+  border-color: transparent;
+  color: var(--ldfc-on-acc);
+}
+.ldfc-theme-hint {
+  margin: 0 0 4px;
+  color: var(--ldfc-dim);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* 固定按钮里的 SVG 图钉 */
+.ldfc-sheet-pin svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 浅色背景下的二次校正：把仍写成白色悬停底/白字的按钮拉回令牌色 */
+html[data-ldfc-scheme="light"] .ldfc-panel-actions button,
+html[data-ldfc-scheme="light"] .ldfc-bulk button,
+html[data-ldfc-scheme="light"] .ldfc-sort-row button,
+html[data-ldfc-scheme="light"] .ldfc-settings-actions button,
+html[data-ldfc-scheme="light"] .ldfc-bm-btn,
+html[data-ldfc-scheme="light"] .ldfc-folder-chip {
+  border-color: var(--ldfc-line);
+  background: var(--ldfc-chip);
+  color: var(--ldfc-text);
+}
+html[data-ldfc-scheme="light"] .ldfc-panel-actions button:hover,
+html[data-ldfc-scheme="light"] .ldfc-move-targets button:hover:not(:disabled),
+html[data-ldfc-scheme="light"] .ldfc-bulk button:hover:not(:disabled),
+html[data-ldfc-scheme="light"] .ldfc-settings-actions button:hover,
+html[data-ldfc-scheme="light"] .ldfc-sync-help-btn:hover,
+html[data-ldfc-scheme="light"] .ldfc-notify-menu button:hover,
+html[data-ldfc-scheme="light"] .ldfc-notify-menu button:focus-visible,
+html[data-ldfc-scheme="light"] .ldfc-bm-btn:hover {
+  background: var(--ldfc-hover);
+  border-color: var(--ldfc-line);
+  color: var(--ldfc-text-strong);
+}
+html[data-ldfc-scheme="light"] .ldfc-sort-row button:hover,
+html[data-ldfc-scheme="light"] .ldfc-sort-row button.active,
+html[data-ldfc-scheme="light"] .ldfc-start-mode .ldfc-seg button:hover,
+html[data-ldfc-scheme="light"] .ldfc-start-mode .ldfc-seg button[aria-pressed="true"],
+html[data-ldfc-scheme="light"] .ldfc-notify-menu button[aria-checked="true"] {
+  background: var(--ldfc-hover);
+  color: var(--ldfc-text-strong);
+}
+html[data-ldfc-scheme="light"] .ldfc-panel-title:hover { color: var(--ldfc-text-strong); }
+html[data-ldfc-scheme="light"] .ldfc-folder-chip.active {
+  background: var(--ldfc-acc);
+  border-color: transparent;
+  color: var(--ldfc-on-acc);
+}
+
+/* 浅色模式：输入框 / 分区容器不用白色描边，否则在白底上看不见 */
+html[data-ldfc-scheme="light"] #ldfc-settings input[type="text"],
+html[data-ldfc-scheme="light"] #ldfc-settings input[type="url"],
+html[data-ldfc-scheme="light"] #ldfc-settings input[type="password"],
+html[data-ldfc-scheme="light"] #ldfc-settings input[type="number"],
+html[data-ldfc-scheme="light"] #ldfc-settings select,
+html[data-ldfc-scheme="light"] #ldfc-settings textarea,
+html[data-ldfc-scheme="light"] .ldfc-sync-section,
+html[data-ldfc-scheme="light"] .ldfc-sync-help,
+html[data-ldfc-scheme="light"] .ldfc-bm-search,
+html[data-ldfc-scheme="light"] .ldfc-snap-panel input,
+html[data-ldfc-scheme="light"] .ldfc-snap-panel select {
+  border-color: var(--ldfc-line);
+  background: var(--ldfc-panel-2);
+  color: var(--ldfc-text);
+}
+html[data-ldfc-scheme="light"] #ldfc-navigation .ldfc-nav-items button.active {
+  color: var(--ldfc-acc-text);
+}
+html[data-ldfc-scheme="light"] #ldfc-navigation .ldfc-nav-items button.active .ldfc-nav-count {
+  background: color-mix(in srgb, var(--ldfc-acc) 30%, transparent);
+  color: var(--ldfc-acc-text);
+}
+
+html[data-ldfc-scheme="light"] .ldfc-preview-toggle,
+html[data-ldfc-scheme="light"] .ldfc-anim-speed {
+  background: var(--ldfc-panel-2);
+  border-color: var(--ldfc-line);
+}
+html[data-ldfc-scheme="light"] .ldfc-anim-speed-title { color: var(--ldfc-dim); }

@@ -69,3 +69,6 @@ docs/LDFC-1.0.0-Git封存记录.md
 docs/LDFC-Mobile-Phase1-Firefox最终提交包.md
 
 browser-lab/*.log
+
+# ---- 效果图渲染中间产物（无损 PNG 版体积大，只入库 JPG）----
+docs/ui-mockups/*.png

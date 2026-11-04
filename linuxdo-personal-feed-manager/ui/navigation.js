@@ -42,12 +42,25 @@
   const SHEET_CLOSE_MS = 360;
   const START_MODE_KEY = "navStartMode";
 
+  // 一级面板的图标：线性 SVG（emoji 在不同系统上字形不一，也跟不上主题色）。
+  const NAV_ICONS = {
+    HOME: '<path d="M4.5 7h11.5"/><path d="M4.5 12h8.5"/><path d="M4.5 17h6.5"/><circle cx="18.6" cy="17" r="1.6"/>',
+    INTERESTED:
+      '<path d="M12 3.8l2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.82 6.9 19.5l.97-5.68L3.75 9.8l5.7-.83z"/>',
+    NEW_REPLY: '<path d="M20 5H4v11h5v4l5-4h6z"/>',
+    READ: '<path d="M4.5 12.5l4.8 4.8L19.8 6.8"/>',
+    DISMISSED: '<path d="M6 6l12 12M18 6L6 18"/>',
+    BOOKMARK: '<path d="M7 4h10v16l-5-4-5 4z"/>',
+    SETTINGS:
+      '<circle cx="12" cy="12" r="3"/><path d="M12 3.8v2M12 18.2v2M3.8 12h2M18.2 12h2M6.2 6.2l1.4 1.4M16.4 16.4l1.4 1.4M17.8 6.2l-1.4 1.4M7.6 16.4l-1.4 1.4"/>'
+  };
+
   const tabs = [
-    { pool: "HOME", label: "🏠 主信息流" },
-    { pool: "INTERESTED", label: "⭐ 感兴趣" },
-    { pool: "NEW_REPLY", label: "💬 新回复" },
-    { pool: "READ", label: "✓ 已读" },
-    { pool: "DISMISSED", label: "× 不感兴趣" }
+    { pool: "HOME", name: "主信息流" },
+    { pool: "INTERESTED", name: "感兴趣" },
+    { pool: "NEW_REPLY", name: "新回复" },
+    { pool: "READ", name: "已读" },
+    { pool: "DISMISSED", name: "不感兴趣" }
   ];
 
   let nav;
@@ -196,7 +209,11 @@
     for (const button of items.querySelectorAll("button[data-pool]")) {
       const pool = button.dataset.pool;
       const count = countFor(pool);
-      button.innerHTML = `${tabs.find((tab) => tab.pool === pool).label} <span>${count}</span>`;
+      const tab = tabs.find((item) => item.pool === pool);
+      button.innerHTML =
+        `<svg class="ldfc-nav-icon" viewBox="0 0 24 24" aria-hidden="true">${NAV_ICONS[pool] || ""}</svg>` +
+        `<span class="ldfc-nav-name">${tab?.name || pool}</span>` +
+        `<span class="ldfc-nav-count">${count}</span>`;
       button.classList.toggle("active", window.LDFCFilter.getActivePool() === pool);
     }
 
@@ -796,6 +813,16 @@
 
   function appendItem(element) {
     create();
+    // 后加进来的入口（书签 / 设置）也走同一套图标 + 文字结构，
+    // 否则一级面板底部会突然多出两行没有图标的文字。
+    const icon = element.dataset.navIcon;
+    if (icon && NAV_ICONS[icon]) {
+      const name = element.textContent;
+      element.innerHTML =
+        `<svg class="ldfc-nav-icon" viewBox="0 0 24 24" aria-hidden="true">${NAV_ICONS[icon]}</svg>` +
+        `<span class="ldfc-nav-name">${name}</span>` +
+        "<span class=\"ldfc-nav-count\" hidden></span>";
+    }
     items.appendChild(element);
   }
 

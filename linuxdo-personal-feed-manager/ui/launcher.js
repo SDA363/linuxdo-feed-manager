@@ -19,9 +19,9 @@
   const INJECT_DELAY = 120;
 
   const ACTIONS = [
-    { pool: "INTERESTED", label: "⭐ 感兴趣", dockLabel: "感兴趣", message: "已移入“感兴趣”" },
-    { pool: "READ", label: "✓ 已读", dockLabel: "已读", message: "已移入“已读”" },
-    { pool: "DISMISSED", label: "× 不感兴趣", dockLabel: "不感兴趣", message: "已移入“不感兴趣”" }
+    { pool: "INTERESTED", label: "感兴趣", dockLabel: "感兴趣", message: "已移入“感兴趣”" },
+    { pool: "READ", label: "已读", dockLabel: "已读", message: "已移入“已读”" },
+    { pool: "DISMISSED", label: "不感兴趣", dockLabel: "不感兴趣", message: "已移入“不感兴趣”" }
   ];
 
   // 工具排的状态与实现见下方「工具排」一节。两排工具同名但各自独立：
@@ -288,9 +288,9 @@
       justify-content: center;
       gap: 3px;
       padding: 5px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: 1px solid var(--ldfc-line);
       border-radius: 999px;
-      background: rgba(18, 18, 22, 0.72);
+      background: var(--ldfc-glass);
       box-shadow:
         0 12px 34px -12px rgba(0, 0, 0, 0.72),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -306,7 +306,7 @@
       border: 0;
       border-radius: 999px;
       background: transparent;
-      color: #d7d7df;
+      color: var(--ldfc-text);
       cursor: pointer;
       transition:
         background 220ms cubic-bezier(0.32, 0.72, 0, 1),
@@ -314,8 +314,8 @@
     }
     button:hover,
     button:focus-visible {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
+      background: var(--ldfc-hover);
+      color: var(--ldfc-text-strong);
       outline: none;
     }
     .ldfc-dock-icon {
@@ -371,8 +371,8 @@
       margin-left: 7px;
       padding: 0.08em 0.42em;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.1);
-      color: #b9b9c2;
+      background: var(--ldfc-chip);
+      color: var(--ldfc-chip-text);
       font-size: 11px;
       font-variant-numeric: tabular-nums;
       line-height: 1.45;
@@ -384,8 +384,8 @@
     button[data-pool="READ"].is-in-pool { --ldfc-tint: #5fd0a8; }
     button[data-pool="DISMISSED"].is-in-pool { --ldfc-tint: #e0777d; }
     button.is-in-pool {
-      background: rgba(255, 255, 255, 0.14);
-      color: #fff;
+      background: var(--ldfc-hover);
+      color: var(--ldfc-text-strong);
     }
     button.is-in-pool .ldfc-dock-icon { color: var(--ldfc-tint); }
     button.is-in-pool .ldfc-action-count { color: var(--ldfc-tint); }
@@ -408,10 +408,10 @@
       height: 30px;
       min-width: 30px;
       padding: 0 9px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: 1px solid var(--ldfc-line);
       border-radius: 999px;
-      background: rgba(18, 18, 22, 0.72);
-      color: #d7d7df;
+      background: var(--ldfc-glass);
+      color: var(--ldfc-text);
       line-height: 1;
       cursor: pointer;
       transition:
@@ -436,8 +436,8 @@
       margin-left: 5px;
       padding: 0.08em 0.42em;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.1);
-      color: #b9b9c2;
+      background: var(--ldfc-chip);
+      color: var(--ldfc-chip-text);
       font-size: 11px;
       font-variant-numeric: tabular-nums;
       line-height: 1.45;
@@ -471,7 +471,7 @@
     }
     .ldfc-site-action:hover,
     .ldfc-site-action:focus-visible {
-      background: rgba(255, 255, 255, 0.14);
+      background: var(--ldfc-hover);
       transform: translateY(-1px);
       outline: none;
     }
@@ -505,10 +505,10 @@
       align-items: center;
       height: 30px;
       padding: 0 12px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      border: 1px solid var(--ldfc-line);
       border-radius: 999px;
-      background: rgba(18, 18, 22, 0.62);
-      color: #d7d7df;
+      background: color-mix(in srgb, var(--ldfc-panel-solid) 72%, transparent);
+      color: var(--ldfc-text);
       font-size: 12px;
       font-weight: 600;
       line-height: 1;
@@ -521,15 +521,15 @@
     }
     .tools button:hover,
     .tools button:focus-visible {
-      background: rgba(255, 255, 255, 0.16);
-      border-color: rgba(255, 255, 255, 0.24);
-      color: #fff;
+      background: var(--ldfc-hover);
+      border-color: var(--ldfc-line);
+      color: var(--ldfc-text-strong);
       outline: none;
     }
     .tools button[aria-pressed="true"] {
-      background: rgba(255, 255, 255, 0.2);
-      border-color: rgba(255, 255, 255, 0.3);
-      color: #fff;
+      background: var(--ldfc-hover);
+      border-color: var(--ldfc-line);
+      color: var(--ldfc-text-strong);
     }
     .tools button[disabled] {
       opacity: 0.6;

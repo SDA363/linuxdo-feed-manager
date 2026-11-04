@@ -77,7 +77,7 @@
     }
   }
 
-  // mode: auto / light / dark。auto 直接跟随站点当前主题（body 的底色与字色）。
+  // mode: auto / light / dark。auto 跟随系统深浅色（站点本身跟随系统，故读 body 底色与字色等价）。
   function resolveTheme(mode) {
     const light = { bg: "#ffffff", fg: "#24292f", dark: false };
     const dark = { bg: "#12141a", fg: "#e8e8ea", dark: true };
@@ -532,7 +532,7 @@
     themeLabel.textContent = "主题";
     const themeSelect = document.createElement("select");
     for (const [value, text] of [
-      ["auto", "跟随站点"],
+      ["auto", "跟随系统"],
       ["light", "浅色"],
       ["dark", "深色"]
     ]) {
