@@ -454,6 +454,88 @@
     layer.addEventListener("touchcancel", clearHold, { passive: true });
   }
 
+  // ---- 长按整行也能进多选 ----
+  //
+  // 胶囊在触摸端默认是隐藏的（见 styles/content.css 的 touch 媒体查询），
+  // 只靠「先点一下行把胶囊唤出来、再按住它」太绕。这里补一条等价的入口：
+  // 手指按住行内任意位置 500ms 就进入多选（鼠标不参与，桌面维持原样）。
+  // 长按的这 500ms 里如果手指移动超过 6px 就取消，保证正常滑动/点标题不受影响。
+  let rowPress = null;
+  let swallowLinkUntil = 0;
+
+  function clearRowPress() {
+    if (!rowPress) return;
+    clearTimeout(rowPress.timer);
+    rowPress = null;
+  }
+
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (active || drag) return;
+      if (event.pointerType === "mouse") return;
+      // 胶囊自己有长按逻辑（bindLongPress），别重复
+      if (layerOf(event.target)) return;
+      const row = event.target?.closest?.("[data-topic-id], .ldfc-topic-row");
+      if (!row) return;
+      clearRowPress();
+      rowPress = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        row,
+        timer: setTimeout(() => {
+          if (!rowPress) return;
+          rowPress = null;
+          if (active) return;
+          // 进多选后浏览器常会补一次 click（落在标题上就是"打开帖子"），吞掉它
+          swallowLinkUntil = Date.now() + 700;
+          enter();
+        }, LONG_PRESS_MS)
+      };
+    },
+    true
+  );
+
+  document.addEventListener(
+    "pointermove",
+    (event) => {
+      if (!rowPress || event.pointerId !== rowPress.pointerId) return;
+      if (Math.hypot(event.clientX - rowPress.x, event.clientY - rowPress.y) > DRAG_START_PX) {
+        clearRowPress();
+      }
+    },
+    true
+  );
+  document.addEventListener("pointerup", clearRowPress, true);
+  document.addEventListener("pointercancel", clearRowPress, true);
+  window.addEventListener("scroll", clearRowPress, { passive: true });
+
+  // 长按整行时，系统会弹「打开链接 / 复制」菜单：按着的时候一律拦掉。
+  document.addEventListener(
+    "contextmenu",
+    (event) => {
+      if (!rowPress && Date.now() > swallowLinkUntil) return;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    true
+  );
+
+  // 挂在 window 的捕获阶段：它比任何 document 级捕获监听都早触发，
+  // 所以不管 ui/preview.js 先注册还是后注册，长按后补发的 click 都不会把预览打开。
+  window.addEventListener(
+    "click",
+    (event) => {
+      if (Date.now() > swallowLinkUntil) return;
+      if (!event.target?.closest?.("a[href]")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    },
+    true
+  );
+
   // ---- 点击：多选里 = 勾选；同一枚双击 = 退出多选 ----
 
   document.addEventListener(
