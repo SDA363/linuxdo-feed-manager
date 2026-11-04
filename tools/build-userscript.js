@@ -55,7 +55,7 @@ const jsText = jsFiles
 const header = `// ==UserScript==
 // @name         ${manifest.name}
 // @namespace    linuxdo-feed-manager@ldfc.local
-// @version      ${manifest.version}-mobile.4
+// @version      ${manifest.version}-mobile.5
 // @description  ${manifest.description}
 // @match        https://linux.do/*
 // @run-at       document-start

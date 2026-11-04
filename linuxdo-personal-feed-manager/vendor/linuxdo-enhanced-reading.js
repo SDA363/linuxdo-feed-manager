@@ -5150,7 +5150,10 @@
     const target = Math.round(Number(postNumber));
     if (!Number.isFinite(target) || target < 1) return false;
     const floor = Math.min(target, Math.max(1, CURRENT_HIGHEST));
-    if (floor === 1) {
+    // 「滚到顶」这个捷径只在 1 楼**已经渲染**时成立。
+    // 当前窗口是从 47 楼开始的（拖动滑块到过 47），此时 scrollTo(0) 只能滚到窗口第一条，
+    // 看着就像"拉不回一楼"。1 楼没渲染时必须走下面的换窗口分支。
+    if (floor === 1 && ctx.nodeMap.get(1)?.isConnected) {
       ctx.scrollRoot?.scrollTo?.({ top: 0, behavior: 'smooth' });
       return true;
     }
@@ -5368,6 +5371,10 @@
       dragging = false;
 
       suppressClick = true;
+
+      // 拖动结束时浏览器不一定补发 click（指针抬在滑块外就不会）。
+      // 只靠 click 复位会让 suppressClick 永久卡住，把**下一次**真正的轨道点击吞掉。
+      setTimeout(() => { suppressClick = false; }, 350);
 
       thumb.style.cursor = 'grab';
 
