@@ -21,16 +21,27 @@
   //   2. 再打开自己的。谁先拿到 click 都不会留下两层窗口。
   const META_KEY = "previewEnabled";
   const BATCH = 20;
+  // 悬停预取总开关的存储键。默认关闭：预取是纯延迟优化，
+  // 用户只是划过没点开时那次请求就是白花的，所以默认花用户的钱不如让他自己开。
+  const PREFETCH_META_KEY = "prefetchOnHover";
   // 悬停预取的意图延迟：太快会在鼠标扫过列表时白请求，太慢就赶不上点击。
-  // 160ms 意味着"只是路过"不会触发，而"要打开的人"本来就会在标题上停一下。
-  const PREFETCH_DELAY = 160;
-  // 两次悬停预取之间的冷却：慢速扫过 20 行也不至于发出 20 个请求。
-  // 真正点击（pointerdown）不受冷却限制，不会拖慢打开。
-  const PREFETCH_MIN_GAP = 500;
+  // 130ms 意味着"只是路过"不会触发，而"要打开的人"本来就会在标题上停一下。
+  const PREFETCH_DELAY = 130;
+  // 两次悬停预取之间的冷却：扫过一屏标题也不至于发出十几个请求。
+  // 真正点击（pointerdown）不受冷却限制，也不会被总开关拦，不会拖慢打开。
+  const PREFETCH_MIN_GAP = 1200;
   const PREFETCH_MAX = 200;
 
   let ready = false;
   let enabled = true;
+  // 悬停预取默认关闭，需在设置面板里显式开启。
+  let prefetchOnHover = false;
+  // 用户是否已经动过这个开关：动过之后，晚到的 loadSetting 结果不许再覆盖他的选择。
+  let prefetchTouched = false;
+  let resolveReady = null;
+  const readyPromise = new Promise((resolve) => {
+    resolveReady = resolve;
+  });
   // 已经预取过的 Topic：同一个标题反复划过只请求一次。
   const prefetched = new Set();
   let hoverTimer = 0;
@@ -62,7 +73,32 @@
     } catch {
       // 读不到就用默认值
     }
+    try {
+      const savedPrefetch = await window.LDFCDB.getMeta(PREFETCH_META_KEY);
+      if (!prefetchTouched && typeof savedPrefetch === "boolean") prefetchOnHover = savedPrefetch;
+    } catch {
+      // 读不到就用默认值（关闭）
+    }
     ready = true;
+    resolveReady?.();
+  }
+
+  function isPrefetchOnHover() {
+    return prefetchOnHover;
+  }
+
+  async function setPrefetchOnHover(next) {
+    prefetchTouched = true;
+    prefetchOnHover = Boolean(next);
+    if (!prefetchOnHover) {
+      clearTimeout(hoverTimer);
+      prefetched.clear();
+    }
+    try {
+      await window.LDFCDB.putMeta(PREFETCH_META_KEY, prefetchOnHover);
+    } catch {
+      // 写不进去也不影响本次会话
+    }
   }
 
   // ---- 链接识别 ----
@@ -134,8 +170,12 @@
   // 感知到的卡顿。引擎现在给首页树加了 60 秒缓存（vendor 里 NESTED_CACHE），
   // 这里在鼠标划过标题、或按下鼠标时先把它取回来，点击时直接命中缓存。
   //
-  // 代价：用户只是划过而没点开，会多一次请求。所以只在预览开关打开、
-  // 非搜索页、非站外链接时预取，且同一个 Topic 只预取一次。
+  // 代价：用户只是划过而没点开，会多一次请求。所以：
+  //   1. 悬停预取默认关闭（设置面板可开，存 prefetchOnHover）；
+  //   2. 要停在标题上 130ms 才算"有意图"，扫过的行不发；
+  //   3. 两次预取之间冷却 1200ms，扫一屏也只发一跳；
+  //   4. 同一个 Topic 只预取一次；非搜索页、非站外链接才做。
+  // 点击（pointerdown）的预取不受这四条限制：那是真意图，不能拖慢打开。
   function prefetchTarget(anchor) {
     const id = topicIdFrom(anchor);
     if (!id || prefetched.has(id)) return null;
@@ -146,7 +186,18 @@
     const id = prefetchTarget(anchor);
     if (!id) return;
     // 悬停路径有冷却；点击路径（force）必须发，否则会拖慢真正的打开。
-    if (!force && Date.now() - lastPrefetchAt < PREFETCH_MIN_GAP) return;
+    // 冷却期间不丢弃意图：用户可能一直停在这一条上，等冷却结束补发一次，
+    // 否则「停在 A 上刚预取过，1.2 秒内挪到 B 并停住」会让 B 永远不被预取。
+    if (!force) {
+      const wait = PREFETCH_MIN_GAP - (Date.now() - lastPrefetchAt);
+      if (wait > 0) {
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(() => {
+          if (prefetchOnHover && anchor.isConnected) prefetchNow(anchor);
+        }, wait);
+        return;
+      }
+    }
     lastPrefetchAt = Date.now();
     if (prefetched.size > PREFETCH_MAX) prefetched.clear();
     prefetched.add(id);
@@ -169,10 +220,15 @@
   function onPointerOver(event) {
     // 触摸没有「悬停意图」，等 pointerdown 再取，否则每次点开都是白请求。
     if (event.pointerType === "touch" || event.pointerType === "pen") return;
+    // 悬停预取默认关闭：没开就只走 pointerdown 那条路。
+    if (!prefetchOnHover) return;
     const anchor = candidateAnchor(event);
     if (!anchor || !prefetchTarget(anchor)) return;
     clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => prefetchNow(anchor), PREFETCH_DELAY);
+    // 回调里再校验一次：定时器期间可能已被关闭开关、或那一行已被列表更新换掉。
+    hoverTimer = setTimeout(() => {
+      if (prefetchOnHover && anchor.isConnected) prefetchNow(anchor);
+    }, PREFETCH_DELAY);
   }
 
   function onPointerOut(event) {
@@ -187,9 +243,10 @@
 
   function onPointerDown(event) {
     if (event.button !== 0) return;
+    // 先清掉挂起的悬停定时器：按在非链接上（工具栏、空白）也必须撤销意图。
+    clearTimeout(hoverTimer);
     const anchor = candidateAnchor(event);
     if (!anchor) return;
-    clearTimeout(hoverTimer);
     prefetchNow(anchor, true);
   }
 
@@ -648,8 +705,11 @@
     close,
     closeAnimated,
     isEnabled,
+    isPrefetchOnHover,
     open,
     setEnabled,
-    start
+    setPrefetchOnHover,
+    start,
+    whenReady: () => readyPromise
   };
 })();

@@ -424,6 +424,24 @@
       "如果装了第三方预览脚本，则由它接管。";
     previewToggle.append(previewInput, previewText);
 
+    // 悬停预取：默认关闭。开启后鼠标在标题上停 130ms 才提前取一次，
+    // 扫过列表不会触发；真正点击的预取不受这个开关影响。
+    const prefetchToggle = notifyToggleRow(
+      "ldfc-prefetch-toggle",
+      "悬停标题时预取预览内容（默认关闭）。开启后鼠标在标题上停留约 0.13 秒、" +
+        "且距上次预取超过 1.2 秒才会请求一次，扫过列表不触发；点击时的预取始终保留。",
+      Boolean(window.LDFCPreview?.isPrefetchOnHover?.()),
+      (checked) => window.LDFCPreview?.setPrefetchOnHover?.(checked)
+    );
+    // 开关的真值由 preview.js 异步读 IndexedDB 得到；面板可能先渲染，
+    // 就绪后回填一次，避免"库里是开的、界面显示没开"。
+    window.LDFCPreview?.whenReady?.()
+      .then(() => {
+        const input = prefetchToggle.querySelector("input");
+        if (input) input.checked = Boolean(window.LDFCPreview?.isPrefetchOnHover?.());
+      })
+      .catch(() => {});
+
     // 动画速度：0.1×（慢 10 倍）~ 2×（快 2 倍），1× 是正常速度。
     // 主要给"想看清动画怎么走"的场景用，平时保持 1× 即可。
     const speedRow = document.createElement("label");
@@ -552,6 +570,7 @@
       syncHost,
       readTitle,
       previewToggle,
+      prefetchToggle,
       speedRow,
       speedHint,
       startRow,
