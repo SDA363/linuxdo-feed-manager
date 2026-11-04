@@ -5150,11 +5150,12 @@
     const target = Math.round(Number(postNumber));
     if (!Number.isFinite(target) || target < 1) return false;
     const floor = Math.min(target, Math.max(1, CURRENT_HIGHEST));
-    // 「滚到顶」这个捷径只在 1 楼**已经渲染**时成立。
-    // 当前窗口是从 47 楼开始的（拖动滑块到过 47），此时 scrollTo(0) 只能滚到窗口第一条，
-    // 看着就像"拉不回一楼"。1 楼没渲染时必须走下面的换窗口分支。
-    if (floor === 1 && ctx.nodeMap.get(1)?.isConnected) {
-      ctx.scrollRoot?.scrollTo?.({ top: 0, behavior: 'smooth' });
+    // 1 楼一律按窗口重建，不给"滚到顶"的捷径：
+    //   主楼 #1 虽然钉在模态窗顶部，但评论区窗口可能是 47..84，滚到顶会让引擎向上补楼，
+    //   新楼层插在前面、浏览器的滚动锚定再把视口顶回去 —— 实测落在 #8 附近，看着就是"拉不回一楼"。
+    // 已经在 1 楼时不会走到这里（navigateToFloor 对 targetFloor === currentFloor 直接返回）。
+    if (floor === 1) {
+      await openModal(ctx.topicId, 1, { reuseOverlay: true });
       return true;
     }
     if (ctx.nodeMap.get(floor)?.isConnected) {
