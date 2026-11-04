@@ -613,7 +613,7 @@
     const themeHint = document.createElement("p");
     themeHint.className = "ldfc-theme-hint";
     themeHint.textContent =
-      "默认主题只影响插件自己的悬浮球、面板与按钮；深浅色默认跟随系统（与站点同步），也可以固定为浅色 / 深色。";
+      "默认主题只影响插件自己的悬浮球、面板与按钮；深浅色默认跟随系统，站点配色与系统不一致时以站点为准（兜底）。也可以固定为浅色 / 深色。";
 
     function syncAppearance() {
       const theme = window.LDFCTheme?.id ?? "a";

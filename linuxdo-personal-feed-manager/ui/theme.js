@@ -3,8 +3,8 @@
 // 只改 documentElement 上的 data 属性，具体颜色全部在 content.css 的
 // 令牌里；本文件不碰页面自身的 class / style，避免影响站点原生主题。
 //
-// 深浅色跟随的是**系统**（prefers-color-scheme），不是站点：linux.do
-// 自己也是跟随系统切换的，两者天然一致；用户仍可强制浅色 / 深色。
+// auto = 先跟随系统（prefers-color-scheme）；站点与系统配色冲突时以站点为准兜底，
+// 这样面板不会压在异色页面上。用户仍可强制浅色 / 深色。
 (function () {
   const THEMES = [
     { id: "a", name: "青瓷", acc: "#38c6b4", acc2: "#1e9086" },
@@ -27,8 +27,32 @@
   const validScheme = (mode) => SCHEMES.includes(mode);
   const systemScheme = () => (media?.matches ? "dark" : "light");
 
+  // 站点兜底：系统与站点配色不一致时以站点为准，避免面板压在异色页面上。
+  // 先看站点自己声明的 color-scheme（Discourse 会写 html { color-scheme: light }），
+  // 拿不到再退回正文色亮度：暗字=浅背景，亮字=深背景。
+  function luminanceOf(color) {
+    const m = /rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(color || "");
+    if (!m) return null;
+    return (0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3])) / 255;
+  }
+
+  function siteScheme() {
+    try {
+      const declared = (getComputedStyle(root).colorScheme || "").toLowerCase();
+      const hasLight = declared.includes("light");
+      const hasDark = declared.includes("dark");
+      if (hasDark !== hasLight) return hasDark ? "dark" : "light";
+      if (!document.body) return null;
+      const lum = luminanceOf(getComputedStyle(document.body).color);
+      if (lum === null) return null;
+      return lum > 0.55 ? "dark" : lum < 0.45 ? "light" : null;
+    } catch {
+      return null;
+    }
+  }
+
   function apply() {
-    const resolved = schemeMode === "auto" ? systemScheme() : schemeMode;
+    const resolved = schemeMode === "auto" ? siteScheme() || systemScheme() : schemeMode;
     root.dataset.ldfcTheme = themeId;
     root.dataset.ldfcScheme = resolved;
     root.dataset.ldfcSchemeMode = schemeMode;
@@ -88,6 +112,28 @@
     if (schemeMode === "auto") apply();
   });
 
+  // 站点换主题（改 html/body 的 class 或 style）时重新探测，节流 250ms。
+  // attributeFilter 只有 class/style，所以本文件写 data-ldfc-* 不会自触发。
+  let recheckTimer = 0;
+  function scheduleRecheck() {
+    if (schemeMode !== "auto" || recheckTimer) return;
+    recheckTimer = setTimeout(() => {
+      recheckTimer = 0;
+      apply();
+    }, 250);
+  }
+  function watchSite() {
+    if (!document.body || typeof MutationObserver === "undefined") return;
+    const onSiteChange = () => scheduleRecheck();
+    const observer = new MutationObserver(onSiteChange);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
+    observer.observe(root, { attributes: true, attributeFilter: ["class", "style"] });
+  }
+  if (document.body) watchSite();
+  else document.addEventListener("DOMContentLoaded", watchSite, { once: true });
+  setTimeout(scheduleRecheck, 0);
+  window.addEventListener("load", scheduleRecheck, { once: true });
+
   // IndexedDB 是持久化的真源（换设备/清缓存后仍以库里的为准）。
   const ready = (async () => {
     try {
@@ -122,6 +168,7 @@
     get resolved() { return lastResolved; },
     setTheme,
     setScheme,
+    siteScheme,
     apply,
     ready
   };
