@@ -389,7 +389,8 @@
     }
     button.is-in-pool .ldfc-dock-icon { color: var(--ldfc-tint); }
     button.is-in-pool .ldfc-action-count { color: var(--ldfc-tint); }
-    /* 站点动作排：打开原帖 / 书签 / 分享（+ 全搬档的赞、boost） */
+    /* 站点动作排：只有全搬档才显示，五枚与底排一一对应。
+       这里的 display:flex 会盖掉 hidden 属性自带的 display:none，单独补一条。 */
     .ldfc-site-actions {
       display: flex;
       flex-wrap: wrap;
@@ -397,6 +398,9 @@
       justify-content: center;
       gap: 6px;
       margin-top: 7px;
+    }
+    .ldfc-site-actions[hidden] {
+      display: none;
     }
     .ldfc-site-action {
       display: flex;
@@ -1477,9 +1481,11 @@
 
   // ---- 预览窗底部的站点动作排 ----
   //
-  // 默认只放「只读 / 可回滚」的三枚：打开原帖、书签、分享。
-  // 设置里打开「全搬」后才追加「赞 / boost」——赞和 boost 会真的写站点
-  // （给楼主发通知），默认关着，避免在预览窗里误触。
+  // 只有两态，没有中间档：
+  //   全搬（开）  ：底排五枚（赞/回复/boost/书签/打开原帖）整条隐藏，
+  //                 由上面这排接管，下面一次画满五枚；
+  //   全不搬（关）：底排保持原样，这排整个不显示。
+  // 赞 / boost 会真的写站点（给楼主发通知），所以默认关。
   const SITE_ACTIONS_KEY = "ldfc.previewAllSiteActions";
   let siteActionsAll = false;
   let siteActionsLoaded = false;
@@ -1532,11 +1538,11 @@
 
   // 顺序与预览窗底排完全一致：赞 / 回复 / boost / 书签 / 打开原帖。
   const SITE_ACTION_LIST = [
-    { id: "like", label: "赞", icon: SITE_ICONS.like, countSelector: ".ldp-f-like-count", gated: true },
-    { id: "reply", label: "回复", icon: SITE_ICONS.reply, countSelector: ".ldp-f-reply-count", gated: false },
-    { id: "boost", label: "boost", icon: SITE_ICONS.boost, gated: true },
-    { id: "bookmark", label: "书签", icon: SITE_ICONS.bookmark, gated: false },
-    { id: "open", label: "打开原帖", icon: SITE_ICONS.open, gated: false }
+    { id: "like", label: "赞", icon: SITE_ICONS.like, countSelector: ".ldp-f-like-count" },
+    { id: "reply", label: "回复", icon: SITE_ICONS.reply, countSelector: ".ldp-f-reply-count" },
+    { id: "boost", label: "boost", icon: SITE_ICONS.boost },
+    { id: "bookmark", label: "书签", icon: SITE_ICONS.bookmark },
+    { id: "open", label: "打开原帖", icon: SITE_ICONS.open }
   ];
 
   function siteActionOriginal(overlay, id) {
@@ -1609,21 +1615,22 @@
     }
   }
 
-  // 这排动作已经从预览窗底部搬过来了，底排对应的圆按钮就不再重复显示。
-  // 只在挂载了这排的预览窗上生效，不影响别的第三方弹窗。
+  // 只有「全搬」时才动底排：整条隐藏，五个动作全部由上面这排接管。
+  // 「全不搬」= 底排保持第三方脚本原样，上面这排也不显示。
   function syncSiteActionVisibility(overlay) {
     if (!overlay) return;
-    overlay.classList.add("ldfc-has-site-actions");
     overlay.classList.toggle("ldfc-all-site-actions", siteActionsAll);
   }
 
   function createSiteActions(resolveTopic, overlay) {
     const row = document.createElement("div");
     row.className = "ldfc-site-actions";
+    // 偏好是异步读的：先藏住，读到 true 再由 paint() 放开，避免闪一下。
+    row.hidden = true;
 
     const paint = () => {
       row.innerHTML = "";
-      const list = SITE_ACTION_LIST.filter((action) => !action.gated || siteActionsAll);
+      const list = SITE_ACTION_LIST;
       for (const action of list) {
         const button = document.createElement("button");
         button.type = "button";
@@ -1660,8 +1667,9 @@
         applySiteAction(button, action.id, resolveTopic?.()?.topicId, overlay);
         row.appendChild(button);
       }
+      row.hidden = !siteActionsAll;
       syncSiteActionVisibility(overlay);
-      if (list.some((action) => action.id === "bookmark")) {
+      if (siteActionsAll && list.some((action) => action.id === "bookmark")) {
         // 拉一次列表（10 分钟内走缓存），点亮已收藏状态；失败不影响点击。
         window.LDFCSiteBookmarks?.load?.().catch?.(() => {});
       }
@@ -1833,7 +1841,7 @@
     observe,
     refresh,
     updateCounts,
-    // 设置面板用：预览窗底部是否连「赞 / boost」也搬过来（默认只搬只读的三个）
+    // 设置面板用：全搬（底排五枚整条隐藏、上面这排接管）/ 全不搬（保持原样）
     isAllSiteActions: () => siteActionsAll,
     setAllSiteActions: setSiteActionsAll,
     whenSiteActionsReady: () => loadSiteActionPref()

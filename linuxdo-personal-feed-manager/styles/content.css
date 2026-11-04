@@ -1726,15 +1726,10 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   text-decoration: none;
 }
 
-/* 预览窗（第三方弹窗）底部圆按钮：已经搬到「工具排下面」的动作不再重复出现。
-   默认搬「回复 / 书签 / 打开原帖」，开启「全搬」后连赞 / boost 也搬，底排整条隐藏。 */
-.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions .ldp-footer .ldp-f-reply,
-.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions .ldp-footer .ldp-f-bookmark,
-.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions .ldp-footer .ldp-f-open {
-  display: none !important;
-}
-
-.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions.ldfc-all-site-actions .ldp-footer {
+/* 只有「全搬」才动底排：整条隐藏，五枚动作全部由上面那排接管。
+   连 #ldfc-preview 自己的「打开原贴」也一起藏，否则和上面那排重复。
+   「全不搬」时不加这个类，底排保持原样。 */
+.ldp-overlay.ldfc-all-site-actions .ldp-footer {
   display: none !important;
 }
 
