@@ -7,7 +7,7 @@
 **感兴趣 / 已读 / 不感兴趣 / 新回复** 四个池子，把处理过的内容从列表里收起来。
 论坛仍然负责内容、阅读位置和未读状态，扩展只做「归你管的那一层」。
 
-当前版本：**1.1.2**（Chrome / Edge，Manifest V3）
+当前版本：**1.1.3**（Chrome / Edge，Manifest V3）
 
 ## 下载
 
@@ -17,9 +17,9 @@
 
   | 文件 | 给谁用 |
   |---|---|
-  | `linuxdo-feed-manager-chrome-1.1.2.zip` | Chrome / Edge 插件（解压后「加载已解压的扩展程序」） |
+  | `linuxdo-feed-manager-chrome-1.1.3.zip` | Chrome / Edge 插件（解压后「加载已解压的扩展程序」） |
   | `ldfc.user.js` | 油猴 / 篡改猴脚本（Tampermonkey → 导入） |
-  | `linuxdo-feed-manager-firefox-1.1.2.zip` | Firefox 打包产物；Android 安装前需经 AMO 签名 |
+  | `linuxdo-feed-manager-firefox-1.1.3.zip` | Firefox 打包产物；Android 安装前需经 AMO 签名 |
 
 ## 功能
 
@@ -113,7 +113,7 @@ node tools/build-userscript.js   # 输出 dist/ldfc.user.js
 |---|---|
 | Chrome / Edge（MV3，桌面） | 已实现并验收 |
 | 油猴 / 篡改猴（`@grant GM_xmlhttpRequest`） | 已实现并冒烟验收；云同步走 GM 跨域（真实网盘 NOT TESTED） |
-| Firefox for Android | 已生成签名用打包产物（`dist/linuxdo-feed-manager-firefox-1.1.2.zip`）；**仅模拟器链路验证，真实手机 NOT TESTED** |
+| Firefox for Android | 已生成签名用打包产物（`dist/linuxdo-feed-manager-firefox-1.1.3.zip`）；**仅模拟器链路验证，真实手机 NOT TESTED** |
 | iOS / iPadOS | 未支持 |
 
 ## 测试
