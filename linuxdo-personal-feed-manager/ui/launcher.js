@@ -826,8 +826,9 @@
     for (const article of articles) {
       const hide = onlyOp.topic && article.getAttribute("data-user-id") !== opId;
       const target = article.closest(".topic-post") ?? article;
-      const want = hide ? "none" : "";
-      if (target.style.display !== want) target.style.display = want;
+      // 用 class 而不是内联 display:none：站点会把高度为 0 的楼层整块重建，
+      // 重建后内联样式被抹掉 → 观察器再套一次 → 无限刷新（详见 content.css 的 .ldfc-op-hidden）。
+      target.classList.toggle("ldfc-op-hidden", hide);
     }
   }
 

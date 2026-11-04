@@ -337,6 +337,29 @@
   position: relative;
 }
 
+/* 真实帖子页的「只看楼主」：隐藏非楼主楼层。
+ *
+ * 为什么不是 display:none —— Discourse 会把**高度塌成 0 的楼层**当成需要重建的节点，
+ * 把整块 `.topic-post` 重渲染一遍；重渲染冲掉我们写的样式，观察器（refresh）再套一次，
+ * 就变成"页面每隔约 1.5s 闪一次、只看楼主永远落不了地"。
+ * 真机实测（Edge Android，同一帖子）：display:none 每 1.5s 一轮（4→3→4 层、hidden 2→0）；
+ * 同样的隐藏改成保留 1px 高度后，6s 内零变化。
+ *
+ * 所以这里刻意保留 1px：视觉上仍是"没了"，但不会触发站点重建。 */
+.topic-post.ldfc-op-hidden,
+article.ldfc-op-hidden {
+  display: block !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  max-height: 1px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* 列表行悬停入口：与预览窗 dock、首楼按钮同一套视觉
    （单色图标 + 悬停旋转 + 横向展开文字）。颜色全部 inherit / 中性半透明，
    亮色与暗色主题都不用另写；也不再是旧版那三块彩色 pill。 */
