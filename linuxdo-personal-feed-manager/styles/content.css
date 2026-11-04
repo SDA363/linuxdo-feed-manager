@@ -1727,14 +1727,14 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 /* 预览窗（第三方弹窗）底部圆按钮：已经搬到「工具排下面」的动作不再重复出现。
-   默认只搬只读的三枚（打开原帖 / 书签 / 分享），开启「全搬」后再连赞 / boost 一起搬。 */
+   默认搬「回复 / 书签 / 打开原帖」，开启「全搬」后连赞 / boost 也搬，底排整条隐藏。 */
+.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions .ldp-footer .ldp-f-reply,
 .ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions .ldp-footer .ldp-f-bookmark,
 .ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions .ldp-footer .ldp-f-open {
   display: none !important;
 }
 
-.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions.ldfc-all-site-actions .ldp-footer .ldp-f-like,
-.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions.ldfc-all-site-actions .ldp-footer .ldp-f-boost {
+.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions.ldfc-all-site-actions .ldp-footer {
   display: none !important;
 }
 

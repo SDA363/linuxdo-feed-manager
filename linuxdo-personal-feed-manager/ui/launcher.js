@@ -416,8 +416,28 @@
         border-color 200ms ease;
     }
     .ldfc-site-glyph {
-      font-size: 14px;
-      line-height: 1;
+      display: grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+    .ldfc-site-glyph svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+    .ldfc-site-count {
+      min-width: 1.4em;
+      margin-left: 5px;
+      padding: 0.08em 0.42em;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #b9b9c2;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.45;
+      text-align: center;
     }
     /* 文字默认收起：手机屏幕窄，五枚都展开会挤成两行；按住/悬停再看全名。 */
     .ldfc-site-label {
@@ -1463,7 +1483,6 @@
   const SITE_ACTIONS_KEY = "ldfc.previewAllSiteActions";
   let siteActionsAll = false;
   let siteActionsLoaded = false;
-  const postMetaCache = new Map(); // topicId -> { postId, liked, at }
 
   async function loadSiteActionPref() {
     if (siteActionsLoaded) return siteActionsAll;
@@ -1487,42 +1506,55 @@
     return `${location.origin}/t/${topicId}`;
   }
 
-  function csrfToken() {
-    return document.querySelector('meta[name="csrf-token"]')?.content || "";
+  // 图标直接取预览窗自己那排的 SVG（不是 emoji）：搬过去之后看起来才是同一套按钮。
+  const SITE_ICONS = {
+    like: {
+      viewBox: "0 0 24 24",
+      path: '<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>'
+    },
+    reply: {
+      viewBox: "0 0 1024 1024",
+      path: '<path d="M1024 640q0 94.857143-72.571429 257.714286-1.714286 4-6 13.714286t-7.714286 17.142857-7.428571 12.571429q-6.857143 9.714286-16 9.714286-8.571429 0-13.428571-5.714286t-4.857143-14.285714q0-5.142857 1.428571-15.142857t1.428571-13.428571q2.857143-38.857143 2.857143-70.285714 0-57.714286-10-103.428571t-27.714286-79.142857-45.714286-57.714286-60.285714-39.714286-76-24.285714-88-12.285714-100.285714-3.428571l-128 0 0 146.285714q0 14.857143-10.857143 25.714286t-25.714286 10.857143-25.714286-10.857143l-292.571429-292.571429q-10.857143-10.857143-10.857143-25.714286t10.857143-25.714286l292.571429-292.571429q10.857143-10.857143 25.714286-10.857143t25.714286 10.857143 10.857143 25.714286l0 146.285714 128 0q407.428571 0 500 230.285714 30.285714 76.571429 30.285714 190.285714z"/>'
+    },
+    boost: {
+      viewBox: "0 0 1024 1024",
+      path: '<path d="M1010.092957 38.19946a31.779551 31.779551 0 0 0-24.399655-24.399655C921.294212 0 870.914925 0 820.715635 0c-206.397081 0-330.195331 110.398439-422.574025 255.99638H189.744557A95.998643 95.998643 0 0 0 104.005769 308.975631l-98.838602 197.597206A47.999321 47.999321 0 0 0 48.146559 575.991855h207.537065l-44.939364 44.939365a63.999095 63.999095 0 0 0 0 90.49872l101.79856 101.81856a63.999095 63.999095 0 0 0 90.51872 0L448.000905 768.309136V975.986199a47.999321 47.999321 0 0 0 69.399019 42.979392l197.397208-98.778603a95.818645 95.818645 0 0 0 52.999251-85.798787V625.571154c145.177947-92.598691 255.99638-216.796934 255.99638-422.17403 0.199997-50.399287 0.199997-100.798575-13.699806-165.197664zM767.99638 335.995249a79.998869 79.998869 0 1 1 79.998869-79.998869 79.998869 79.998869 0 0 1-79.998869 79.998869z"/>'
+    },
+    bookmark: {
+      viewBox: "0 0 24 24",
+      path: '<path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/>'
+    },
+    open: {
+      viewBox: "0 0 24 24",
+      path: '<path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>'
+    }
+  };
+
+  // 顺序与预览窗底排完全一致：赞 / 回复 / boost / 书签 / 打开原帖。
+  const SITE_ACTION_LIST = [
+    { id: "like", label: "赞", icon: SITE_ICONS.like, countSelector: ".ldp-f-like-count", gated: true },
+    { id: "reply", label: "回复", icon: SITE_ICONS.reply, countSelector: ".ldp-f-reply-count", gated: false },
+    { id: "boost", label: "boost", icon: SITE_ICONS.boost, gated: true },
+    { id: "bookmark", label: "书签", icon: SITE_ICONS.bookmark, gated: false },
+    { id: "open", label: "打开原帖", icon: SITE_ICONS.open, gated: false }
+  ];
+
+  function siteActionOriginal(overlay, id) {
+    return overlay?.querySelector(`.ldp-f-${id}`) || null;
   }
 
-  // 首楼 post id / 是否已赞：预览窗自己那份数据拿不到，点击时才按需取一次并缓存 5 分钟。
-  async function postMeta(topicId, { refresh = false } = {}) {
-    const key = String(topicId);
-    const cached = postMetaCache.get(key);
-    if (!refresh && cached && Date.now() - cached.at < 5 * 60 * 1000) return cached;
-    const res = await fetch(`/t/${topicId}.json`, {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" }
-    });
-    if (!res.ok) throw new Error(`读取帖子失败：${res.status}`);
-    const json = await res.json();
-    const post = json.post_stream?.posts?.[0];
-    if (!post) throw new Error("没有首楼数据");
-    const like = (post.actions_summary || []).find((action) => action.id === 2);
-    const meta = {
-      postId: post.id,
-      liked: Boolean(like?.acted),
-      likeCount: like?.count ?? 0,
-      canBoost: post.can_boost !== false,
-      at: Date.now()
-    };
-    postMetaCache.set(key, meta);
-    return meta;
-  }
-
-  function applySiteAction(button, id, topicId) {
+  function applySiteAction(button, id, topicId, overlay) {
     if (!button) return;
     if (id === "bookmark") {
       button.classList.toggle("is-on", window.LDFCSiteBookmarks?.isBookmarked?.(topicId) === true);
     } else if (id === "like") {
-      const meta = postMetaCache.get(String(topicId));
-      button.classList.toggle("is-on", Boolean(meta?.liked));
+      // 点赞状态以原按钮的 .liked 为准：我们只是把触发器搬过来，不另存一份状态。
+      button.classList.toggle("is-on", siteActionOriginal(overlay, "like")?.classList.contains("liked") === true);
+    }
+    const action = SITE_ACTION_LIST.find((one) => one.id === id);
+    const count = button.querySelector(".ldfc-site-count");
+    if (count && action?.countSelector) {
+      count.textContent = overlay?.querySelector(action.countSelector)?.textContent?.trim() || "0";
     }
   }
 
@@ -1531,14 +1563,15 @@
     for (const host of document.querySelectorAll(`.${DOCK_CLASS}`)) {
       const topicId = host.ldfcResolveTopic?.()?.topicId;
       if (!topicId) continue;
+      const overlay = host.closest(".ldp-overlay");
       for (const button of host.shadowRoot?.querySelectorAll(".ldfc-site-action") ?? []) {
-        applySiteAction(button, button.dataset.siteAction, topicId);
+        applySiteAction(button, button.dataset.siteAction, topicId, overlay);
       }
     }
   }
   window.addEventListener("ldfc:site-bookmarks-changed", updateSiteActionStates);
 
-  async function runSiteAction(id, resolveTopic, button) {
+  async function runSiteAction(id, resolveTopic, button, overlay) {
     const topicId = resolveTopic?.()?.topicId;
     if (!topicId) return;
     // 连点会并发发出两个 POST/DELETE；同一个按钮在请求结束前只认第一次。
@@ -1546,20 +1579,9 @@
     if (button) button.dataset.busy = "1";
     try {
       if (id === "open") {
-        window.open(topicUrl(topicId), "_blank", "noopener");
-        return;
-      }
-      if (id === "share") {
-        const url = topicUrl(topicId);
-        const title = resolveTopic()?.title || document.title;
-        if (navigator.share) {
-          await navigator.share({ title, url });
-        } else if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(url);
-          window.LDFCToast?.show?.("链接已复制");
-        } else {
-          window.prompt("复制这个链接", url);
-        }
+        const href = siteActionOriginal(overlay, "open")?.getAttribute("href");
+        const url = href && href !== "#" ? new URL(href, location.origin).href : topicUrl(topicId);
+        window.open(url, "_blank", "noopener");
         return;
       }
       if (id === "bookmark") {
@@ -1571,66 +1593,21 @@
         window.LDFCToast?.show?.(result.bookmarked ? "已加入书签" : "已取消书签");
         return;
       }
-      if (id === "like") {
-        const meta = await postMeta(topicId, { refresh: true });
-        const headers = { "Content-Type": "application/json", Accept: "application/json" };
-        const token = csrfToken();
-        if (token) headers["X-CSRF-Token"] = token;
-        if (meta.liked) {
-          await fetch(`/post_actions/${meta.postId}?post_action_type_id=2`, {
-            method: "DELETE",
-            credentials: "same-origin",
-            headers
-          });
-          meta.liked = false;
-          window.LDFCToast?.show?.("已取消赞");
-        } else {
-          const res = await fetch("/post_actions", {
-            method: "POST",
-            credentials: "same-origin",
-            headers,
-            body: JSON.stringify({ id: meta.postId, post_action_type_id: 2 })
-          });
-          if (!res.ok) throw new Error(`点赞失败：${res.status}`);
-          meta.liked = true;
-          window.LDFCToast?.show?.("已赞");
-        }
-        meta.at = Date.now();
-        button?.classList.toggle("is-on", meta.liked);
+      // 赞 / 回复 / boost 直接转发给预览窗原来的按钮：
+      // 点赞状态、内联回复框、boost 弹层都由它自己处理，这里不重复实现。
+      const original = siteActionOriginal(overlay, id);
+      if (!original || original.disabled) {
+        window.LDFCToast?.show?.("稍等，预览还在加载");
         return;
       }
-      if (id === "boost") {
-        // linux.do 的 boost 端点没在公开 collection 里，先按帖子级接口尝试；
-        // 失败就明确提示去帖子页，而不是静默什么都不发生。
-        const meta = await postMeta(topicId);
-        const headers = { "Content-Type": "application/json", Accept: "application/json" };
-        const token = csrfToken();
-        if (token) headers["X-CSRF-Token"] = token;
-        const res = await fetch(`/t/${topicId}/boosts`, {
-          method: "POST",
-          credentials: "same-origin",
-          headers,
-          body: JSON.stringify({ post_id: meta.postId })
-        });
-        if (!res.ok) throw new Error(`boost 失败：${res.status}`);
-        window.LDFCToast?.show?.("已 boost");
-      }
+      original.click();
+      setTimeout(() => applySiteAction(button, id, topicId, overlay), 300);
     } catch (error) {
-      window.LDFCToast?.show?.(
-        id === "boost" ? "boost 需要到帖子页操作" : `${error?.message || "操作失败"}`
-      );
+      window.LDFCToast?.show?.(`${error?.message || "操作失败"}`);
     } finally {
       if (button) delete button.dataset.busy;
     }
   }
-
-  const SITE_ACTION_LIST = [
-    { id: "open", glyph: "↗", title: "打开原帖", label: "打开原帖", gated: false },
-    { id: "bookmark", glyph: "🔖", title: "书签", label: "书签", gated: false },
-    { id: "share", glyph: "📤", title: "分享", label: "分享", gated: false },
-    { id: "like", glyph: "❤", title: "赞（写站点）", label: "赞", gated: true },
-    { id: "boost", glyph: "🚀", title: "boost（写站点）", label: "boost", gated: true }
-  ];
 
   // 这排动作已经从预览窗底部搬过来了，底排对应的圆按钮就不再重复显示。
   // 只在挂载了这排的预览窗上生效，不影响别的第三方弹窗。
@@ -1652,24 +1629,35 @@
         button.type = "button";
         button.className = "ldfc-site-action";
         button.dataset.siteAction = action.id;
-        button.title = action.title;
-        button.setAttribute("aria-label", action.title);
+        button.title = action.label;
+        button.setAttribute("aria-label", action.label);
         const glyph = document.createElement("span");
         glyph.className = "ldfc-site-glyph";
-        glyph.textContent = action.glyph;
         glyph.setAttribute("aria-hidden", "true");
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", action.icon.viewBox);
+        svg.setAttribute("fill", "currentColor");
+        svg.innerHTML = action.icon.path;
+        glyph.appendChild(svg);
+        button.appendChild(glyph);
+        if (action.countSelector) {
+          const count = document.createElement("span");
+          count.className = "ldfc-site-count";
+          count.textContent = "0";
+          button.appendChild(count);
+        }
         const label = document.createElement("span");
         label.className = "ldfc-site-label";
         label.textContent = action.label;
-        button.append(glyph, label);
+        button.appendChild(label);
         // 触摸端没有 hover：按住展开文字，松手收起，和 dock 同一套手感。
         bindTouchPress(button);
         button.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
-          runSiteAction(action.id, resolveTopic, button);
+          runSiteAction(action.id, resolveTopic, button, overlay);
         });
-        applySiteAction(button, action.id, resolveTopic?.()?.topicId);
+        applySiteAction(button, action.id, resolveTopic?.()?.topicId, overlay);
         row.appendChild(button);
       }
       syncSiteActionVisibility(overlay);

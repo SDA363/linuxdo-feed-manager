@@ -70,7 +70,6 @@
   async function fetchAll(username) {
     const items = [];
     let page = 0;
-    let complete = false;
     while (page < MAX_PAGES) {
       const res = await fetch(`/u/${username}/bookmarks.json?page=${page}`, {
         credentials: "same-origin",
@@ -82,14 +81,10 @@
       const list = json.user_bookmark_list;
       if (!list) throw new Error("书签接口返回格式异常");
       for (const raw of list.bookmarks || []) items.push(normalize(raw));
-      if (!list.more_bookmarks_url) {
-        complete = true;
-        break;
-      }
+      if (!list.more_bookmarks_url) break;
       page += 1;
     }
-    // 翻到上限还没完 = 只拿到部分数据，不能拿它做删除对账。
-    return { items, complete };
+    return items;
   }
 
   async function persistCache() {
@@ -137,22 +132,12 @@
         loading = null;
         return cache || { fetchedAt: 0, username: null, items: [] };
       }
-      const { items, complete } = await fetchAll(username);
+      const items = await fetchAll(username);
       const map = await readFolderMap();
       for (const item of items) item.folderId = map[String(item.id)] || null;
-
-      // 对账：站点上已经删掉的书签，本地映射也清掉，避免越积越多
-      if (complete) {
-        const alive = new Set(items.map((item) => String(item.id)));
-        let pruned = false;
-        for (const key of Object.keys(map)) {
-          if (!alive.has(key)) {
-            delete map[key];
-            pruned = true;
-          }
-        }
-        if (pruned) await writeFolderMap();
-      }
+      // 不按列表反推「书签已删除」去清理映射：分页期间列表可能变化（新增一条
+      // 就会让某条跨页错位），按「这次没看到」删映射会误删用户的分类。
+      // 陈旧映射不参与渲染，留着没有副作用。
 
       cache = { fetchedAt: Date.now(), username, items };
       await persistCache();
