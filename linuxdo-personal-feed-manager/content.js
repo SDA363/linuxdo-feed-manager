@@ -336,6 +336,7 @@
     await window.LDFCPoolPanel.loadSortPreference();
     await window.LDFCSettings.create();
     window.LDFCNavigation.render();
+    window.LDFCBookmarkPanel?.addLaunchButton?.();
     window.LDFCSettings.addLaunchButton();
     window.LDFCLauncher?.refresh?.();
     window.LDFCLauncher?.observe?.();

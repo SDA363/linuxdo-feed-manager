@@ -685,7 +685,8 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   cursor: pointer;
 }
 
-#ldfc-panel {
+#ldfc-panel,
+#ldfc-bm-panel {
   position: fixed;
   right: 16px;
   top: 72px;
@@ -709,11 +710,13 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 #ldfc-panel::-webkit-scrollbar,
+#ldfc-bm-panel::-webkit-scrollbar,
 #ldfc-settings::-webkit-scrollbar {
   width: 10px;
 }
 
 #ldfc-panel::-webkit-scrollbar-thumb,
+#ldfc-bm-panel::-webkit-scrollbar-thumb,
 #ldfc-settings::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
@@ -722,12 +725,14 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 
 #ldfc-panel::-webkit-scrollbar-thumb:hover,
+#ldfc-bm-panel::-webkit-scrollbar-thumb:hover,
 #ldfc-settings::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.32);
   background-clip: content-box;
 }
 
-#ldfc-panel h2 {
+#ldfc-panel h2,
+#ldfc-bm-panel h2 {
   margin: 0 0 12px;
   font-size: 17px;
   font-weight: 700;
@@ -1721,6 +1726,18 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   text-decoration: none;
 }
 
+/* 预览窗（第三方弹窗）底部圆按钮：已经搬到「工具排下面」的动作不再重复出现。
+   默认只搬只读的三枚（打开原帖 / 书签 / 分享），开启「全搬」后再连赞 / boost 一起搬。 */
+.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions .ldp-footer .ldp-f-bookmark,
+.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions .ldp-footer .ldp-f-open {
+  display: none !important;
+}
+
+.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions.ldfc-all-site-actions .ldp-footer .ldp-f-like,
+.ldp-overlay:not(#ldfc-preview).ldfc-has-site-actions.ldfc-all-site-actions .ldp-footer .ldp-f-boost {
+  display: none !important;
+}
+
 #ldfc-preview .ldfc-pv-post {
   padding: 14px 0;
   border-bottom: 1px solid var(--primary-low, #eee);
@@ -2578,3 +2595,78 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 }
 .ldfc-folder-menu button:hover { background: rgba(255, 255, 255, 0.1); }
 .ldfc-bulk-folders { padding-top: 6px; }
+
+/* ===== 站点书签面板（ui/bookmarkPanel.js） =====
+   外框复用 #ldfc-panel 的规则，这里只补面板内部的小件。 */
+.ldfc-bm-search {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 8px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 13px;
+}
+.ldfc-bm-list { display: flex; flex-direction: column; gap: 2px; }
+.ldfc-bm-item {
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.ldfc-bm-title {
+  display: block;
+  color: #eee;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.ldfc-bm-title:hover { color: #8cb4ff; }
+.ldfc-bm-meta {
+  margin-top: 3px;
+  color: #94949f;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ldfc-bm-tools {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ldfc-bm-btn {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d7d7df;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.ldfc-bm-btn:hover { background: rgba(255, 255, 255, 0.13); color: #fff; }
+.ldfc-bm-btn[disabled] { opacity: 0.5; cursor: default; }
+.ldfc-bm-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ldfc-bm-picker[hidden] { display: none; }
+.ldfc-bm-empty {
+  margin: 18px 2px;
+  color: #94949f;
+  font-size: 13px;
+  text-align: center;
+}
+.ldfc-bm-more {
+  margin: 12px auto 4px;
+  padding: 7px 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: transparent;
+  color: #c8c8d2;
+  font-size: 12px;
+  cursor: pointer;
+}

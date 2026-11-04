@@ -367,6 +367,8 @@
     }
     .ldfc-action-count {
       min-width: 1.4em;
+      /* 计数从 label 里提出来常显：与信息流列表行的胶囊同一套观感（图标 + 数字） */
+      margin-left: 7px;
       padding: 0.08em 0.42em;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.1);
@@ -387,6 +389,72 @@
     }
     button.is-in-pool .ldfc-dock-icon { color: var(--ldfc-tint); }
     button.is-in-pool .ldfc-action-count { color: var(--ldfc-tint); }
+    /* 站点动作排：打开原帖 / 书签 / 分享（+ 全搬档的赞、boost） */
+    .ldfc-site-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 7px;
+    }
+    .ldfc-site-action {
+      display: flex;
+      align-items: center;
+      height: 30px;
+      min-width: 30px;
+      padding: 0 9px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      background: rgba(18, 18, 22, 0.72);
+      color: #d7d7df;
+      line-height: 1;
+      cursor: pointer;
+      transition:
+        background 200ms cubic-bezier(0.32, 0.72, 0, 1),
+        transform 200ms cubic-bezier(0.32, 0.72, 0, 1),
+        border-color 200ms ease;
+    }
+    .ldfc-site-glyph {
+      font-size: 14px;
+      line-height: 1;
+    }
+    /* 文字默认收起：手机屏幕窄，五枚都展开会挤成两行；按住/悬停再看全名。 */
+    .ldfc-site-label {
+      display: flex;
+      align-items: center;
+      max-width: 0;
+      margin-left: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateX(-6px);
+      font-size: 12px;
+      font-weight: 600;
+      transition:
+        max-width 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        margin-left 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        transform 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 160ms ease 40ms;
+    }
+    .ldfc-site-action:hover .ldfc-site-label,
+    .ldfc-site-action:focus-visible .ldfc-site-label,
+    .ldfc-site-action.ldfc-press .ldfc-site-label {
+      max-width: 120px;
+      margin-left: 5px;
+      opacity: 1;
+      transform: none;
+    }
+    .ldfc-site-action:hover,
+    .ldfc-site-action:focus-visible {
+      background: rgba(255, 255, 255, 0.14);
+      transform: translateY(-1px);
+      outline: none;
+    }
+    .ldfc-site-action.is-on {
+      border-color: rgba(255, 212, 59, 0.55);
+      color: #ffd43b;
+    }
     button.is-in-pool::after {
       content: "";
       position: absolute;
@@ -1387,6 +1455,235 @@
     return tools;
   }
 
+  // ---- 预览窗底部的站点动作排 ----
+  //
+  // 默认只放「只读 / 可回滚」的三枚：打开原帖、书签、分享。
+  // 设置里打开「全搬」后才追加「赞 / boost」——赞和 boost 会真的写站点
+  // （给楼主发通知），默认关着，避免在预览窗里误触。
+  const SITE_ACTIONS_KEY = "ldfc.previewAllSiteActions";
+  let siteActionsAll = false;
+  let siteActionsLoaded = false;
+  const postMetaCache = new Map(); // topicId -> { postId, liked, at }
+
+  async function loadSiteActionPref() {
+    if (siteActionsLoaded) return siteActionsAll;
+    siteActionsLoaded = true;
+    try {
+      siteActionsAll = Boolean(await window.LDFCDB.getMeta(SITE_ACTIONS_KEY));
+    } catch {
+      siteActionsAll = false;
+    }
+    return siteActionsAll;
+  }
+
+  function setSiteActionsAll(value) {
+    siteActionsAll = Boolean(value);
+    siteActionsLoaded = true;
+    window.LDFCDB?.putMeta?.(SITE_ACTIONS_KEY, siteActionsAll).catch?.(() => {});
+    window.dispatchEvent(new CustomEvent("ldfc:site-actions-changed"));
+  }
+
+  function topicUrl(topicId) {
+    return `${location.origin}/t/${topicId}`;
+  }
+
+  function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || "";
+  }
+
+  // 首楼 post id / 是否已赞：预览窗自己那份数据拿不到，点击时才按需取一次并缓存 5 分钟。
+  async function postMeta(topicId, { refresh = false } = {}) {
+    const key = String(topicId);
+    const cached = postMetaCache.get(key);
+    if (!refresh && cached && Date.now() - cached.at < 5 * 60 * 1000) return cached;
+    const res = await fetch(`/t/${topicId}.json`, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" }
+    });
+    if (!res.ok) throw new Error(`读取帖子失败：${res.status}`);
+    const json = await res.json();
+    const post = json.post_stream?.posts?.[0];
+    if (!post) throw new Error("没有首楼数据");
+    const like = (post.actions_summary || []).find((action) => action.id === 2);
+    const meta = {
+      postId: post.id,
+      liked: Boolean(like?.acted),
+      likeCount: like?.count ?? 0,
+      canBoost: post.can_boost !== false,
+      at: Date.now()
+    };
+    postMetaCache.set(key, meta);
+    return meta;
+  }
+
+  function applySiteAction(button, id, topicId) {
+    if (!button) return;
+    if (id === "bookmark") {
+      button.classList.toggle("is-on", window.LDFCSiteBookmarks?.isBookmarked?.(topicId) === true);
+    } else if (id === "like") {
+      const meta = postMetaCache.get(String(topicId));
+      button.classList.toggle("is-on", Boolean(meta?.liked));
+    }
+  }
+
+  // 书签缓存是异步到位的：加载完成后把已经挂在预览窗上的按钮重刷一遍。
+  function updateSiteActionStates() {
+    for (const host of document.querySelectorAll(`.${DOCK_CLASS}`)) {
+      const topicId = host.ldfcResolveTopic?.()?.topicId;
+      if (!topicId) continue;
+      for (const button of host.shadowRoot?.querySelectorAll(".ldfc-site-action") ?? []) {
+        applySiteAction(button, button.dataset.siteAction, topicId);
+      }
+    }
+  }
+  window.addEventListener("ldfc:site-bookmarks-changed", updateSiteActionStates);
+
+  async function runSiteAction(id, resolveTopic, button) {
+    const topicId = resolveTopic?.()?.topicId;
+    if (!topicId) return;
+    // 连点会并发发出两个 POST/DELETE；同一个按钮在请求结束前只认第一次。
+    if (button?.dataset.busy === "1") return;
+    if (button) button.dataset.busy = "1";
+    try {
+      if (id === "open") {
+        window.open(topicUrl(topicId), "_blank", "noopener");
+        return;
+      }
+      if (id === "share") {
+        const url = topicUrl(topicId);
+        const title = resolveTopic()?.title || document.title;
+        if (navigator.share) {
+          await navigator.share({ title, url });
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(url);
+          window.LDFCToast?.show?.("链接已复制");
+        } else {
+          window.prompt("复制这个链接", url);
+        }
+        return;
+      }
+      if (id === "bookmark") {
+        // 书签缓存可能还没加载（没开过书签面板）：先对齐真实状态，
+        // 否则已收藏的主题会被当成「未收藏」再 POST 一次。
+        await window.LDFCSiteBookmarks?.load?.();
+        const result = await window.LDFCSiteBookmarks.toggle(topicId);
+        button?.classList.toggle("is-on", result.bookmarked);
+        window.LDFCToast?.show?.(result.bookmarked ? "已加入书签" : "已取消书签");
+        return;
+      }
+      if (id === "like") {
+        const meta = await postMeta(topicId, { refresh: true });
+        const headers = { "Content-Type": "application/json", Accept: "application/json" };
+        const token = csrfToken();
+        if (token) headers["X-CSRF-Token"] = token;
+        if (meta.liked) {
+          await fetch(`/post_actions/${meta.postId}?post_action_type_id=2`, {
+            method: "DELETE",
+            credentials: "same-origin",
+            headers
+          });
+          meta.liked = false;
+          window.LDFCToast?.show?.("已取消赞");
+        } else {
+          const res = await fetch("/post_actions", {
+            method: "POST",
+            credentials: "same-origin",
+            headers,
+            body: JSON.stringify({ id: meta.postId, post_action_type_id: 2 })
+          });
+          if (!res.ok) throw new Error(`点赞失败：${res.status}`);
+          meta.liked = true;
+          window.LDFCToast?.show?.("已赞");
+        }
+        meta.at = Date.now();
+        button?.classList.toggle("is-on", meta.liked);
+        return;
+      }
+      if (id === "boost") {
+        // linux.do 的 boost 端点没在公开 collection 里，先按帖子级接口尝试；
+        // 失败就明确提示去帖子页，而不是静默什么都不发生。
+        const meta = await postMeta(topicId);
+        const headers = { "Content-Type": "application/json", Accept: "application/json" };
+        const token = csrfToken();
+        if (token) headers["X-CSRF-Token"] = token;
+        const res = await fetch(`/t/${topicId}/boosts`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers,
+          body: JSON.stringify({ post_id: meta.postId })
+        });
+        if (!res.ok) throw new Error(`boost 失败：${res.status}`);
+        window.LDFCToast?.show?.("已 boost");
+      }
+    } catch (error) {
+      window.LDFCToast?.show?.(
+        id === "boost" ? "boost 需要到帖子页操作" : `${error?.message || "操作失败"}`
+      );
+    } finally {
+      if (button) delete button.dataset.busy;
+    }
+  }
+
+  const SITE_ACTION_LIST = [
+    { id: "open", glyph: "↗", title: "打开原帖", label: "打开原帖", gated: false },
+    { id: "bookmark", glyph: "🔖", title: "书签", label: "书签", gated: false },
+    { id: "share", glyph: "📤", title: "分享", label: "分享", gated: false },
+    { id: "like", glyph: "❤", title: "赞（写站点）", label: "赞", gated: true },
+    { id: "boost", glyph: "🚀", title: "boost（写站点）", label: "boost", gated: true }
+  ];
+
+  // 这排动作已经从预览窗底部搬过来了，底排对应的圆按钮就不再重复显示。
+  // 只在挂载了这排的预览窗上生效，不影响别的第三方弹窗。
+  function syncSiteActionVisibility(overlay) {
+    if (!overlay) return;
+    overlay.classList.add("ldfc-has-site-actions");
+    overlay.classList.toggle("ldfc-all-site-actions", siteActionsAll);
+  }
+
+  function createSiteActions(resolveTopic, overlay) {
+    const row = document.createElement("div");
+    row.className = "ldfc-site-actions";
+
+    const paint = () => {
+      row.innerHTML = "";
+      const list = SITE_ACTION_LIST.filter((action) => !action.gated || siteActionsAll);
+      for (const action of list) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "ldfc-site-action";
+        button.dataset.siteAction = action.id;
+        button.title = action.title;
+        button.setAttribute("aria-label", action.title);
+        const glyph = document.createElement("span");
+        glyph.className = "ldfc-site-glyph";
+        glyph.textContent = action.glyph;
+        glyph.setAttribute("aria-hidden", "true");
+        const label = document.createElement("span");
+        label.className = "ldfc-site-label";
+        label.textContent = action.label;
+        button.append(glyph, label);
+        // 触摸端没有 hover：按住展开文字，松手收起，和 dock 同一套手感。
+        bindTouchPress(button);
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          runSiteAction(action.id, resolveTopic, button);
+        });
+        applySiteAction(button, action.id, resolveTopic?.()?.topicId);
+        row.appendChild(button);
+      }
+      syncSiteActionVisibility(overlay);
+      if (list.some((action) => action.id === "bookmark")) {
+        // 拉一次列表（10 分钟内走缓存），点亮已收藏状态；失败不影响点击。
+        window.LDFCSiteBookmarks?.load?.().catch?.(() => {});
+      }
+    };
+
+    paint();
+    loadSiteActionPref().then(paint);
+    return row;
+  }
+
   function createDock(overlay, resolveTopic, afterMark) {
     const host = document.createElement("ldfc-preview-dock");
     host.className = DOCK_CLASS;
@@ -1421,9 +1718,10 @@
       const count = document.createElement("span");
       count.className = "ldfc-action-count";
       count.textContent = String(poolCount(action.pool));
-      label.appendChild(count);
 
-      button.append(icon, label);
+      // 顺序 = 图标 / 数字（常显）/ 文字（悬停或按下才展开）。
+      // 信息流列表行那组一直是这个结构，两处统一后才不会一会儿有数一会儿没数。
+      button.append(icon, count, label);
       button.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -1438,8 +1736,19 @@
 
     shadow.appendChild(dock);
     shadow.appendChild(createTools("preview", overlay, resolveTopic));
+    shadow.appendChild(createSiteActions(resolveTopic, overlay));
     return host;
   }
+
+  // 设置里切换「全搬」后，已经打开的预览窗要立刻跟着变，而不是等下次打开。
+  window.addEventListener("ldfc:site-actions-changed", () => {
+    for (const host of document.querySelectorAll(`.${DOCK_CLASS}`)) {
+      const row = host.shadowRoot?.querySelector(".ldfc-site-actions");
+      if (!row) continue;
+      const next = createSiteActions(host.ldfcResolveTopic, host.closest(".ldp-overlay"));
+      row.replaceWith(next);
+    }
+  });
 
   function firstPost() {
     // 用 id 直接定位：观察器每 120ms 可能跑一次，长楼里遍历所有楼层太浪费。
@@ -1508,12 +1817,15 @@
     }
     if (onlyOp.topic) applyTopicOnlyOp();
     updateCounts();
+    updateSiteActionStates();
   }
 
   function observe() {
     if (observer) return;
 
     loadPrefs();
+    // 提前读「全搬」开关：否则设置面板在打开预览窗之前恒显示关闭。
+    loadSiteActionPref();
 
     // 归属变了就重刷光效：自动已读、同步合并、信息池面板移入都不会经过这里的
     // 观察器，靠 poolManager 派发的事件统一收口。
@@ -1528,5 +1840,14 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  window.LDFCLauncher = { applyNotifyVisibility, observe, refresh, updateCounts };
+  window.LDFCLauncher = {
+    applyNotifyVisibility,
+    observe,
+    refresh,
+    updateCounts,
+    // 设置面板用：预览窗底部是否连「赞 / boost」也搬过来（默认只搬只读的三个）
+    isAllSiteActions: () => siteActionsAll,
+    setAllSiteActions: setSiteActionsAll,
+    whenSiteActionsReady: () => loadSiteActionPref()
+  };
 })();

@@ -461,90 +461,7 @@
     return chip;
   }
 
-  let folderMenuOff = null;
-  let folderMenuOpenedAt = 0;
-
-  function closeFolderMenu() {
-    document.querySelector(".ldfc-folder-menu")?.remove();
-    if (folderMenuOff) {
-      document.removeEventListener("click", folderMenuOff, true);
-      folderMenuOff = null;
-    }
-  }
-
-  function openFolderMenu(anchor, folderId) {
-    closeFolderMenu();
-    const menu = document.createElement("div");
-    menu.className = "ldfc-folder-menu";
-
-    const item = (label, handler) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = label;
-      button.addEventListener("click", async () => {
-        closeFolderMenu();
-        await handler();
-      });
-      menu.appendChild(button);
-    };
-
-    item("新建子文件夹", async () => {
-      const name = window.prompt("子文件夹名称");
-      if (name === null) return;
-      const result = await window.LDFCFolders.create(name, folderId);
-      if (!result.ok) window.LDFCToast?.show?.(folderErrorText(result.reason));
-    });
-    item("重命名", async () => {
-      const current = folderLabel(folderId);
-      const name = window.prompt("新的名称", current);
-      if (name === null) return;
-      const result = await window.LDFCFolders.rename(folderId, name);
-      if (!result.ok) window.LDFCToast?.show?.(folderErrorText(result.reason));
-    });
-    item("删除", async () => {
-      const names = window.LDFCFolders.pathOf(folderId);
-      const subtree = window.LDFCFolders.subtreeIds(folderId);
-      const affected = [...(window.LDFCTopicState?.records?.values?.() ?? [])].filter(
-        (record) => record.folderId && subtree.includes(record.folderId)
-      ).length;
-      const detail =
-        `确定删除「${names.join(" / ")}」？\n\n` +
-        (subtree.length > 1 ? `会同时删除其下 ${subtree.length - 1} 个子文件夹。\n` : "") +
-        (affected ? `${affected} 个书签会回到「未分类」，不会被删除。` : "其中没有书签。");
-      if (!window.confirm(detail)) return;
-      const result = await window.LDFCFolders.remove(folderId);
-      if (!result.ok) return;
-      if (activeFolder && (activeFolder === folderId || subtree.includes(activeFolder))) {
-        activeFolder = null;
-      }
-      window.LDFCToast?.show?.(
-        `已删除文件夹「${names[names.length - 1]}」`,
-        "撤销",
-        async () => {
-          await window.LDFCFolders.restore(result.removedFolders, result.affected);
-          refresh();
-        }
-      );
-      refresh();
-    });
-    // 必须挂到 body：面板在展开动画里带 transform，会变成 position:fixed 的包含块，
-    // 挂在面板里算出来的 left/top 会被面板自己的位移再叠一次（实测菜单歪到胶囊下方 230px）。
-    document.body.appendChild(menu);
-
-    const rect = anchor.getBoundingClientRect();
-    menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 180))}px`;
-    menu.style.top = `${rect.bottom + 6}px`;
-
-    // 点菜单外面关掉；点里面交给各自的按钮处理。
-    folderMenuOpenedAt = Date.now();
-    folderMenuOff = (event) => {
-      if (menu.contains(event.target)) return;
-      // 长按松手时浏览器补发的 click 会立刻把刚开出来的菜单关掉，这里放行 300ms
-      if (Date.now() - folderMenuOpenedAt < 300) return;
-      closeFolderMenu();
-    };
-    document.addEventListener("click", folderMenuOff, true);
-  }
+  const closeFolderMenu = () => window.LDFCFolderMenu?.close?.();
 
   function folderErrorText(reason) {
     switch (reason) {
@@ -559,6 +476,28 @@
       default:
         return "操作失败";
     }
+  }
+
+  // 菜单实现见 ui/folderMenu.js：信息池与站点书签共用同一套交互。
+  function openFolderMenu(anchor, folderId) {
+    window.LDFCFolderMenu?.open?.({
+      api: window.LDFCFolders,
+      anchor,
+      folderId,
+      hooks: {
+        onChange: () => {
+          // 删掉的文件夹如果正被筛选，回落到「全部」
+          if (
+            activeFolder &&
+            activeFolder !== "NONE" &&
+            !window.LDFCFolders.list().some((folder) => folder.id === activeFolder)
+          ) {
+            activeFolder = null;
+          }
+          refresh();
+        }
+      }
+    });
   }
 
   function renderFolderBar(pool) {
@@ -699,6 +638,8 @@
     // 设置/向导面板和本面板占同一块区域，同时打开会互相遮挡，必须互斥。
     const settings = document.getElementById("ldfc-settings");
     if (settings) settings.hidden = true;
+    const bookmarks = document.getElementById("ldfc-bm-panel");
+    if (bookmarks) bookmarks.hidden = true;
 
     renderedPool = pool;
     renderedRecords = recordsFor(pool).filter((record) =>

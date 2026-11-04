@@ -16,6 +16,7 @@
 const MESSAGE_TYPE = "ldfc:webdav";
 const CHECK_PERMISSION_TYPE = "ldfc:check-permission";
 const OPEN_PERMISSION_TYPE = "ldfc:open-permission-page";
+const OPEN_TABS_TYPE = "ldfc:open-tabs";
 const ALLOWED_METHODS = new Set(["read", "write", "test"]);
 
 function basicAuthHeader(username, password) {
@@ -138,6 +139,39 @@ async function forward(payload = {}) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // 书签文件夹的「一键打开」：content script 里连续 window.open 会被弹窗拦截，
+  // 后台用 tabs/windows API 批量创建则不受限制（扩展端专属，油猴走 GM_openInTab）。
+  if (message?.type === OPEN_TABS_TYPE) {
+    const urls = Array.isArray(message.urls)
+      ? message.urls.filter((url) => typeof url === "string" && /^https:\/\/linux\.do\//.test(url))
+      : [];
+    const unique = [...new Set(urls)];
+    if (!unique.length) {
+      sendResponse({ ok: false, error: "没有可打开的链接" });
+      return false;
+    }
+    if (message.newWindow) {
+      chrome.windows
+        .create({ url: unique, focused: true })
+        .then(() => sendResponse({ ok: true, opened: unique.length, total: unique.length, mode: "window" }))
+        .catch((error) => sendResponse({ ok: false, error: error?.message || "开窗失败" }));
+      return true;
+    }
+    (async () => {
+      let opened = 0;
+      for (const url of unique) {
+        try {
+          await chrome.tabs.create({ url, active: false });
+          opened += 1;
+        } catch {
+          // 单个失败不中断整批
+        }
+      }
+      sendResponse({ ok: opened > 0, opened, total: unique.length, mode: "tab" });
+    })();
+    return true;
+  }
+
   if (message?.type === CHECK_PERMISSION_TYPE) {
     const origins = Array.isArray(message.origins) ? message.origins.filter(isOriginPattern) : [];
     chrome.permissions

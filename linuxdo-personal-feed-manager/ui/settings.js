@@ -442,6 +442,23 @@
       })
       .catch(() => {});
 
+    // 预览窗底部的站点动作：默认只搬「打开原帖 / 书签 / 分享」，
+    // 打开这个开关才把「赞 / boost」也搬进来（这两个会真的写站点）。
+    const siteActionToggle = notifyToggleRow(
+      "ldfc-site-actions-all",
+      "预览窗底部也显示「赞 / boost」（默认关闭）。这两个按钮会真的写站点并给对方发通知，"
+        + "关闭时只显示「打开原帖 / 书签 / 分享」这三枚只读或可回滚的按钮。",
+      Boolean(window.LDFCLauncher?.isAllSiteActions?.()),
+      (checked) => window.LDFCLauncher?.setAllSiteActions?.(checked)
+    );
+    // 偏好是异步从 IndexedDB 读的，面板先渲染时回填一次，避免显示与实际相反。
+    window.LDFCLauncher?.whenSiteActionsReady?.()
+      ?.then?.(() => {
+        const input = siteActionToggle.querySelector("input");
+        if (input) input.checked = Boolean(window.LDFCLauncher?.isAllSiteActions?.());
+      })
+      ?.catch?.(() => {});
+
     // 动画速度：0.1×（慢 10 倍）~ 2×（快 2 倍），1× 是正常速度。
     // 主要给"想看清动画怎么走"的场景用，平时保持 1× 即可。
     const speedRow = document.createElement("label");
@@ -571,6 +588,7 @@
       readTitle,
       previewToggle,
       prefetchToggle,
+      siteActionToggle,
       speedRow,
       speedHint,
       startRow,
