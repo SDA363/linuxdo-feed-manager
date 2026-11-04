@@ -15,11 +15,22 @@
 - 发布页（**插件包**与**脚本**分开下载）：
   <https://github.com/SDA363/linuxdo-feed-manager/releases/latest>
 
-  | 文件 | 给谁用 |
-  |---|---|
-  | `linuxdo-feed-manager-chrome-1.1.3.zip` | Chrome / Edge 插件（解压后「加载已解压的扩展程序」） |
-  | `ldfc.user.js` | 油猴 / 篡改猴脚本（Tampermonkey → 导入） |
-  | `linuxdo-feed-manager-firefox-1.1.3.zip` | Firefox 打包产物；Android 安装前需经 AMO 签名 |
+### 一键安装（脚本）
+
+装了 Tampermonkey / Violentmonkey 后，点这个链接会直接弹安装页：
+
+<https://github.com/SDA363/linuxdo-feed-manager/releases/latest/download/ldfc.user.js>
+
+### 插件包
+
+| 文件 | 给谁用 |
+|---|---|
+| `linuxdo-feed-manager-chrome-1.1.3.zip` | Chrome / Edge 插件（解压后「加载已解压的扩展程序」） |
+| `ldfc.user.js` | 油猴 / 篡改猴脚本（Tampermonkey → 导入） |
+| `linuxdo-feed-manager-firefox-1.1.3.zip` | Firefox 打包产物；Android 安装前需经 AMO 签名 |
+
+安装插件：下载 zip → 解压到固定目录（别删）→ 打开 `chrome://extensions` 或
+`edge://extensions` → 打开「开发人员模式」→ 「加载已解压的扩展程序」→ 选中解压出来的目录。
 
 ## 功能
 
