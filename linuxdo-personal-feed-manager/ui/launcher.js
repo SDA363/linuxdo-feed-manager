@@ -825,10 +825,13 @@
     if (!opId) return;
     for (const article of articles) {
       const hide = onlyOp.topic && article.getAttribute("data-user-id") !== opId;
-      const target = article.closest(".topic-post") ?? article;
-      // 用 class 而不是内联 display:none：站点会把高度为 0 的楼层整块重建，
-      // 重建后内联样式被抹掉 → 观察器再套一次 → 无限刷新（详见 content.css 的 .ldfc-op-hidden）。
-      target.classList.toggle("ldfc-op-hidden", hide);
+      const want = hide ? "none" : "";
+      // 只隐藏 <article>，**绝不能**动它外面的 .topic-post 容器：
+      // 站点会把「被隐藏的 .topic-post」当成需要重建的楼层，重建冲掉我们的样式，
+      // 观察器（refresh）再套一次 → 每约 1.5s 闪一轮、只看楼主永远落不了地。
+      // 隐藏 article 与参考脚本（小助手的 initOnlyOwnerView）一致；
+      // 真机实测：容器高度同样塌到 0，但没有触发重建，6s 内零变化。
+      if (article.style.display !== want) article.style.display = want;
     }
   }
 
