@@ -1073,6 +1073,120 @@
   const NESTED_CACHE_TTL = 60000;
   const NESTED_CACHE_MAX = 12;
 
+  /* ===== LDFC change: 预览窗头部补「类别 / 等级 / 标签」 =====
+     「正常打开帖子」时标题下面那排徽章：类别（带主题色，受限类别加锁）+ 标签。
+     - category_id 与 tags 来自 /n/-/<id>.json 的 topic —— 预览本来就要拉它，零额外请求；
+     - 类别名/颜色只能从 /site.json 拿：/categories.json 不含隐藏子类别，
+       实测 107「积分乐园, Lv1」在 /categories.json 里根本不存在；
+     - /site.json 结果按 7 天缓存在 localStorage，平时不会重复请求。 */
+  const SITE_CATEGORY_CACHE_KEY = 'ldfc.siteCategories.v1';
+  const SITE_CATEGORY_TTL = 7 * 24 * 3600 * 1000;
+  let siteCategoryMap = null;
+  let siteCategoryPending = null;
+
+  function readSiteCategoryCache() {
+    try {
+      const raw = window.localStorage.getItem(SITE_CATEGORY_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.list) || !parsed.at) return null;
+      if (Date.now() - parsed.at > SITE_CATEGORY_TTL) return null;
+      return new Map(parsed.list);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function ensureSiteCategories() {
+    if (siteCategoryMap) return Promise.resolve(siteCategoryMap);
+    const cached = readSiteCategoryCache();
+    if (cached) {
+      siteCategoryMap = cached;
+      return Promise.resolve(cached);
+    }
+    if (siteCategoryPending) return siteCategoryPending;
+    siteCategoryPending = fetch(`${BASE}/site.json`, {
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const list = ((data && data.categories) || []).map((c) => [
+          String(c.id),
+          { name: c.name, color: c.color, textColor: c.text_color, locked: Boolean(c.read_restricted) },
+        ]);
+        siteCategoryMap = new Map(list);
+        try {
+          window.localStorage.setItem(SITE_CATEGORY_CACHE_KEY, JSON.stringify({ at: Date.now(), list }));
+        } catch (e) {
+          // 隐私模式或配额满：只是不落缓存，不影响本次显示
+        }
+        return siteCategoryMap;
+      })
+      .catch(() => new Map())
+      .finally(() => {
+        siteCategoryPending = null;
+      });
+    return siteCategoryPending;
+  }
+
+  function paintTopicBadges(overlay, meta) {
+    if (!overlay || !meta) return;
+    const metaEl = overlay.querySelector('.ldp-meta');
+    if (!metaEl) return;
+    const old = overlay.querySelector('.ldfc-pv-badges');
+    if (old) old.remove();
+
+    const wrap = document.createElement('div');
+    wrap.className = 'ldfc-pv-badges';
+
+    const addCategory = (info) => {
+      if (!info || !info.name) return false;
+      if (wrap.querySelector('.ldfc-pv-cat')) return false;
+      const chip = document.createElement('span');
+      chip.className = 'ldfc-pv-cat';
+      if (info.color) {
+        chip.style.background = `#${String(info.color).replace(/^#/, '')}`;
+        chip.style.color = info.textColor ? `#${String(info.textColor).replace(/^#/, '')}` : '#fff';
+      }
+      if (info.locked) {
+        const lock = document.createElement('span');
+        lock.className = 'ldfc-pv-lock';
+        lock.textContent = '🔒';
+        lock.setAttribute('aria-label', '受限类别');
+        chip.appendChild(lock);
+      }
+      chip.appendChild(document.createTextNode(info.name));
+      wrap.insertBefore(chip, wrap.firstChild);
+      return true;
+    };
+
+    const categoryId = Number(meta.category_id) || 0;
+    const known = categoryId && siteCategoryMap ? siteCategoryMap.get(String(categoryId)) : null;
+    addCategory(known);
+
+    for (const tag of Array.isArray(meta.tags) ? meta.tags : []) {
+      const name = typeof tag === 'string' ? tag : tag && tag.name;
+      if (!name) continue;
+      const chip = document.createElement('span');
+      chip.className = 'ldfc-pv-tag';
+      chip.textContent = name;
+      wrap.appendChild(chip);
+    }
+
+    if (!wrap.childNodes.length && !categoryId) return;
+    metaEl.parentNode.insertBefore(wrap, metaEl);
+
+    if (categoryId && !known) {
+      ensureSiteCategories()
+        .then((map) => {
+          if (!wrap.isConnected) return;
+          addCategory(map.get(String(categoryId)));
+        })
+        .catch(() => {});
+    }
+  }
+
   async function fetchNestedTree(topicId, page = 0) {
 
     const key = `${topicId}:${page}`;
@@ -6796,6 +6910,9 @@
         overlay.querySelector('.ldp-meta').textContent =
 
             `${topicMeta?.posts_count || 1} 帖 · 楼主 @${ctx.op || '?'}`;
+
+        // LDFC change: 补「类别 / 等级 / 标签」徽章（数据取自 topicMeta，类别名按需异步补）
+        paintTopicBadges(overlay, topicMeta);
 
         updateCommentsHeader(ctx);
 

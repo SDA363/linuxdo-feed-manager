@@ -2490,3 +2490,28 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
     height: 36px;
   }
 }
+
+/* 预览窗头部：类别 / 等级 / 标签徽章（对齐「正常打开帖子」标题下那排） */
+.ldfc-pv-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+.ldfc-pv-badges:empty { display: none; }
+.ldfc-pv-cat,
+.ldfc-pv-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.ldfc-pv-cat { background: #666; color: #fff; }
+.ldfc-pv-tag { background: rgba(127, 127, 127, 0.18); color: inherit; }
+.ldfc-pv-lock { font-size: 10px; opacity: 0.9; }
