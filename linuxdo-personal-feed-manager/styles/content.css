@@ -2667,6 +2667,67 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
   .ldfc-pv-summarize span { display: none; }
 }
 
+/* 预览窗反应条：站点原生 emoji 图标 + 总数 + N 个回复 */
+.ldfc-pv-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: 8px 0 6px;
+}
+.ldfc-pv-reacts {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.ldfc-pv-react {
+  display: block;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.ldfc-pv-react-total {
+  margin-left: 3px;
+  font: 500 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ldfc-dim);
+  font-variant-numeric: tabular-nums;
+}
+.ldfc-pv-replies {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ldfc-dim);
+  font: 500 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+.ldfc-pv-replies:hover {
+  background: var(--ldfc-hover);
+  color: var(--ldfc-text-strong);
+}
+.ldfc-pv-replies:disabled { cursor: default; opacity: 0.55; }
+.ldfc-pv-replies svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 180ms ease;
+}
+.ldfc-pv-replies.is-open svg { transform: rotate(180deg); }
+@media (max-width: 520px) {
+  .ldfc-pv-acts { gap: 4px 10px; margin-top: 6px; }
+  .ldfc-pv-react { width: 16px; height: 16px; }
+  .ldfc-pv-react-total { font-size: 12px; }
+  .ldfc-pv-replies { font-size: 12px; padding: 2px 4px; }
+}
+
 /* 书签自定义文件夹：胶囊行 + 管理菜单 */
 .ldfc-folder-bar {
   display: flex;

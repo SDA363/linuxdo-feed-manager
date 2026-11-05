@@ -3023,6 +3023,36 @@
 
    */
 
+  /* LDFC change: 预览窗补站点的「反应条」——emoji 图标 + 总数 + N 个回复。
+     图标用站点自己的 twemoji PNG（本站 reaction 是图片不是字符），
+     数据来自已经取回的帖子 JSON，不额外发请求。 */
+  const REACTION_EMOJI_CDN = 'https://cdn.ldstatic.com/images/emoji/twemoji/';
+
+  function renderReactionRow(p) {
+    const list = (Array.isArray(p.reactions) ? p.reactions : [])
+        .filter((item) => item && item.id && item.type !== 'not_emoji');
+    const total = Number(p.reaction_users_count)
+        || list.reduce((sum, item) => sum + (Number(item.count) || 0), 0);
+    const replies = Number(p.reply_count) || 0;
+    if (!list.length && !total && !replies) return '';
+    // emoji id 只允许站点实际会用的字符，同时保证 URL / 属性安全。
+    const safeId = (value) => String(value).replace(/[^A-Za-z0-9_+\-]/g, '');
+    const icons = list.map((item) => {
+      const id = safeId(item.id);
+      if (!id) return '';
+      return `<img class="ldfc-pv-react" src="${REACTION_EMOJI_CDN}${id}.png?v=16" alt="${id}"`
+          + ` title="${id} ×${Number(item.count) || 0}" width="18" height="18" loading="lazy" decoding="async">`;
+    }).join('');
+    const reacts = (icons || total)
+        ? `<span class="ldfc-pv-reacts">${icons}${total ? `<span class="ldfc-pv-react-total">${total}</span>` : ''}</span>`
+        : '';
+    const more = replies
+        ? `<button type="button" class="ldfc-pv-replies" data-count="${replies}" aria-expanded="false">${replies} 个回复`
+          + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>'
+        : '';
+    return `<div class="ldfc-pv-acts">${reacts}${more}</div>`;
+  }
+
   function renderPost(p, isReply, ctx, depth = 0) {
 
     // 检测已删除的评论（缺少作者信息或内容）
@@ -3133,6 +3163,8 @@
 
 
 
+    const reactionRowHtml = isDeleted ? '' : renderReactionRow(p);
+
     const node = document.createElement('div');
 
     node.className = 'ldp-post' + (depth > 0 ? ' ldp-reply' : '');
@@ -3168,6 +3200,8 @@
       </div>
 
       <div class="ldp-content">${cooked}</div>
+
+      ${reactionRowHtml}
 
       <div class="ldp-boosts-list">${boostsHtml}</div>
 
@@ -4105,6 +4139,58 @@
 
 
 
+  /* LDFC change: 反应条上的「N 个回复」。
+     楼中楼本来就在卡片里 → 就地折叠 / 展开；
+     一楼（它的回复渲染在下方评论列表）或还没有加载 → 滚到回复区并触发加载。 */
+  async function togglePvReplies(btn, ctx) {
+    const postNode = btn.closest('.ldp-post');
+    if (!postNode) return;
+    const kids = postNode.querySelector(':scope > .ldp-children');
+    if (kids && kids.children.length) {
+      const open = kids.hidden;
+      kids.hidden = !open;
+      btn.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) kids.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (postNode.dataset.repliesLoaded !== '1' && !postNode.closest('.ldp-topic')) {
+      btn.disabled = true;
+      try {
+        await loadAllChildren(Number(postNode.dataset.postId), Number(postNode.dataset.postNumber), null, ctx, true);
+      } catch (err) {
+        console.error('[LinuxDo 增强阅读] 反应条加载楼中楼失败:', err);
+      }
+      btn.disabled = false;
+      const loaded = postNode.querySelector(':scope > .ldp-children');
+      if (loaded && loaded.children.length) {
+        loaded.hidden = false;
+        btn.classList.add('is-open');
+        btn.setAttribute('aria-expanded', 'true');
+        loaded.scrollIntoView({ block: 'nearest' });
+      }
+      return;
+    }
+    const overlay = btn.closest('.ldp-overlay');
+    const target = overlay?.querySelector('.ldp-comments-header');
+    const body = overlay?.querySelector('.ldp-body');
+    if (!target || !body) return;
+    // 直接写 scrollTop：scrollIntoView 会被滚动锚定顶回去。滚到评论区会让
+    // 上哨兵进入视口，引擎补载更早的帖子后按「内容加在上方」补偿 scrollTop，
+    // 又把刚对齐的位置推走；所以 3 秒内持续重钉，用户一碰屏幕就交还控制权。
+    let stopped = false;
+    const stopPin = () => { stopped = true; };
+    body.addEventListener('touchstart', stopPin, { once: true, passive: true });
+    body.addEventListener('wheel', stopPin, { once: true, passive: true });
+    const startedAt = Date.now();
+    const pin = () => {
+      if (stopped || !body.isConnected || !target.isConnected) return;
+      body.scrollTop = target.offsetTop;
+      if (Date.now() - startedAt < 3000) setTimeout(pin, 120);
+    };
+    pin();
+  }
+
   /* ============ 9. 加载剩余子回复 ============ */
 
   /**
@@ -4393,6 +4479,21 @@
 
       if (img) { e.preventDefault(); e.stopPropagation(); openLightbox(resolveOriginalSrc(img)); return; }
 
+
+
+      const pvRepliesBtn = e.target.closest('.ldfc-pv-replies');
+
+      if (pvRepliesBtn) {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        togglePvReplies(pvRepliesBtn, ctx);
+
+        return;
+
+      }
 
 
       const moreBtn = e.target.closest('.ldp-load-more-replies');
