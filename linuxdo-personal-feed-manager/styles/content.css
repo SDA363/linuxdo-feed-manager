@@ -2587,6 +2587,86 @@ html.ldfc-selecting .ldfc-topic-row .ldfc-actions {
 .ldfc-pv-tag { background: rgba(127, 127, 127, 0.18); color: inherit; }
 .ldfc-pv-lock { font-size: 10px; opacity: 0.9; }
 
+/* 预览窗主题统计：浏览量 / 赞 / 用户 + 参与者头像 + 总结
+   数据来自 openModal 已取回的 topic.json，不额外发请求。 */
+.ldfc-pv-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin: 8px 0 0;
+}
+.ldfc-pv-stats[hidden] { display: none; }
+.ldfc-pv-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.1;
+}
+.ldfc-pv-stat b {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ldfc-acc-text);
+  font-variant-numeric: tabular-nums;
+}
+.ldfc-pv-stat span {
+  font-size: 11px;
+  color: var(--ldfc-dim);
+}
+.ldfc-pv-people {
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+}
+.ldfc-pv-people img {
+  width: 26px;
+  height: 26px;
+  margin-left: -8px;
+  border-radius: 50%;
+  border: 2px solid var(--ldfc-panel-solid);
+  background: var(--ldfc-chip);
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 160ms ease;
+}
+.ldfc-pv-people img:first-child { margin-left: 0; }
+.ldfc-pv-people img:hover { transform: translateY(-2px); }
+.ldfc-pv-summarize {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid var(--ldfc-line);
+  border-radius: 999px;
+  background: var(--ldfc-chip);
+  color: var(--ldfc-text);
+  font: 600 12.5px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+.ldfc-pv-summarize:hover {
+  background: var(--ldfc-hover);
+  color: var(--ldfc-text-strong);
+}
+.ldfc-pv-summarize svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (max-width: 520px) {
+  .ldfc-pv-stats { gap: 2px 10px; }
+  .ldfc-pv-stat b { font-size: 15px; }
+  .ldfc-pv-people { padding-left: 6px; }
+  .ldfc-pv-people img { width: 22px; height: 22px; margin-left: -6px; }
+  .ldfc-pv-summarize { padding: 5px 8px; }
+  .ldfc-pv-summarize span { display: none; }
+}
+
 /* 书签自定义文件夹：胶囊行 + 管理菜单 */
 .ldfc-folder-bar {
   display: flex;

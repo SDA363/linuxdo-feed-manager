@@ -5754,6 +5754,8 @@
 
             <div class="ldp-meta"><span class="ldp-sk ldp-sk-meta"></span></div>
 
+          <div class="ldfc-pv-stats" hidden></div>
+
           </div>
 
           <div class="ldp-head-btns">
@@ -6233,6 +6235,8 @@
           overlay.querySelector('.ldp-meta').textContent =
 
               `${anchorData.posts_count} 帖 · ${anchorData.views || 0} 浏览 · 楼主 @${ctx.op || '?'}`;
+
+          renderTopicStats(overlay, anchorData);
 
           updateCommentsHeader(ctx);
 
@@ -6914,6 +6918,9 @@
         // LDFC change: 补「类别 / 等级 / 标签」徽章（数据取自 topicMeta，类别名按需异步补）
         paintTopicBadges(overlay, topicMeta);
 
+          // LDFC change: 统计条（浏览量 / 赞 / 用户 + 头像），数据异步补
+          loadTopicStats(overlay, topicId);
+
         updateCommentsHeader(ctx);
 
 
@@ -7213,7 +7220,78 @@
 
 
 
-  /* ============ 15. LDFC integration ============ */
+  /* LDFC change: 主题统计条——浏览量 / 赞 / 用户 + 参与者头像 + 总结按钮。
+   数据全部来自 openModal 已经取回的 topic.json，不额外发请求。 */
+function renderTopicStats(overlay, data) {
+  const box = overlay.querySelector('.ldfc-pv-stats');
+  if (!box) return;
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const details = (data && data.details) || {};
+  const views = Number(data && data.views) || 0;
+  const likes = Number(data && data.like_count) || 0;
+  const users = Number(details.participant_count != null ? details.participant_count : (data && data.participant_count)) || 0;
+  const people = (details.participants || []).filter((p) => p && p.avatar_template).slice(0, 5);
+  const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n));
+  if (!views && !likes && !users && !people.length) { box.hidden = true; return; }
+  const stat = (value, label) => '<div class="ldfc-pv-stat"><b>' + fmt(value) + '</b><span>' + label + '</span></div>';
+  const avatars = people.map((p) => {
+    const src = esc(String(p.avatar_template).replace('{size}', '48'));
+    const who = esc(p.name || p.username || '');
+    return '<img class="ldfc-pv-avatar" src="' + src + '" alt="' + who + '" title="' + who + '" loading="lazy" data-user="' + esc(p.username || '') + '">';
+  }).join('');
+  box.innerHTML =
+    stat(views, '浏览量') + stat(likes, '赞') + stat(users, '用户') +
+    (avatars ? '<div class="ldfc-pv-people">' + avatars + '</div>' : '') +
+    '<button type="button" class="ldfc-pv-summarize" title="站点若启用了 AI 总结则直接调用，否则打开原帖">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l1.85 4.5 4.5 1.85-4.5 1.85L12 16l-1.85-4.6L5.65 9.55l4.5-1.85z"/><path d="M18.2 14.6l.85 2 2 .85-2 .85-.85 2-.85-2-2-.85 2-.85z"/></svg>' +
+    '<span>总结</span></button>';
+  const btn = box.querySelector('.ldfc-pv-summarize');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const native = document.querySelector('.ldp-summarize-btn, .topic-map .summarize-btn, .summarize-btn');
+      if (native) { native.click(); return; }
+      window.open('/t/' + (data && data.id ? data.id : ''), '_blank', 'noopener');
+    });
+  }
+  box.querySelectorAll('.ldfc-pv-avatar').forEach((img) => {
+    img.addEventListener('click', () => {
+      const user = img.dataset.user;
+      if (user) window.open('/u/' + encodeURIComponent(user), '_blank', 'noopener');
+    });
+  });
+  box.hidden = false;
+  // LDFC change: 统计条已经有「浏览量」，meta 里的「N 浏览」去掉，避免同一行说两遍。
+  const metaEl = overlay.querySelector('.ldp-meta');
+  if (metaEl) metaEl.textContent = metaEl.textContent.replace(/ · \d+ 浏览/, '');
+}
+
+// LDFC change: 嵌套接口（/n/-/）不带统计，按需补一次 topic.json；同话题 5 分钟内复用。
+const STATS_CACHE = new Map();
+const STATS_TTL = 5 * 60 * 1000;
+
+function loadTopicStats(overlay, topicId) {
+  const key = String(topicId);
+  const hit = STATS_CACHE.get(key);
+  if (hit && Date.now() - hit.at < STATS_TTL) {
+    renderTopicStats(overlay, hit.data);
+    return;
+  }
+  fetch(BASE + '/t/' + key + '.json', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (!data) return;
+      STATS_CACHE.set(key, { at: Date.now(), data });
+      if (overlay.isConnected) renderTopicStats(overlay, data);
+    })
+    .catch(() => {});
+}
+
+/* ============ 15. LDFC integration ============ */
   // 原脚本在这一节自行拦截标题点击。LDFC 需要统一控制预览开关、
   // 打开动画和操作 dock，所以这里只暴露引擎，不再注册 click。
   window.LDFCEnhancedPreview = {
